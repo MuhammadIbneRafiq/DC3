@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Coral Data Explorer - Comprehensive analysis of coral datasets
-Supporting research questions on coral size vs bleaching susceptibility
-"""
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,25 +10,23 @@ import json
 from collections import defaultdict
 import glob
 
-# Set style for better visualizations
 plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
 
 class CoralDataExplorer:
-    def __init__(self, base_path="data/mask_labels/content/gdrive/MyDrive/Data Challenge 3 - JBG060 AY2526/01_data/benthic_datasets/mask_labels"):
+    def __init__(self, 
+                 base_path="data/mask_labels/content/gdrive/MyDrive/Data Challenge 3 - JBG060 AY2526/01_data/benthic_datasets/mask_labels"
+        ):
         self.base_path = Path(base_path)
         self.coralseg_path = self.base_path / "Coralseg"
         self.reef_support_path = self.base_path / "reef_support"
         
-        # Initialize data containers
         self.dataset_stats = {}
         self.coral_areas = defaultdict(list)
         self.geographic_data = defaultdict(dict)
         
     def analyze_dataset_distribution(self):
-        """Analyze the distribution of datasets across different regions and types"""
-        print("=== DATASET DISTRIBUTION ANALYSIS ===")
-        
+        """Analyze the distribution of datasets across different regions and types"""        
         # Coralseg dataset analysis
         coralseg_stats = {}
         for split in ['train', 'test', 'val']:
@@ -46,7 +38,6 @@ class CoralDataExplorer:
         
         self.dataset_stats['coralseg'] = coralseg_stats
         
-        # Reef support dataset analysis
         reef_stats = {}
         for region_dir in self.reef_support_path.iterdir():
             if region_dir.is_dir():
@@ -242,10 +233,7 @@ class CoralDataExplorer:
         
         return image_data, size_categories
     
-    def analyze_geographic_distribution(self):
-        """Analyze geographic distribution for SLE (Societal, Legal, Ethical) aspects"""
-        print("\n=== GEOGRAPHIC DISTRIBUTION FOR SLE ANALYSIS ===")
-        
+    def analyze_geographic_distribution(self):        
         geographic_regions = {
             'SEAVIEW_ATL': 'Atlantic Ocean',
             'SEAVIEW_PAC_AUS': 'Pacific - Australia', 
@@ -302,18 +290,16 @@ class CoralDataExplorer:
         
         # Plot 3: Caribbean focus (high biodiversity, tourism impact)
         caribbean_data = region_df[region_df['ocean'] == 'Caribbean']
-        if not caribbean_data.empty:
-            axes[1,0].pie(caribbean_data['images'], labels=caribbean_data['region'].str.replace('Caribbean - Colombia', 'COL'), 
-                         autopct='%1.1f%%', startangle=90)
-            axes[1,0].set_title('Caribbean Region Detail\n(Tourism & Conservation Hotspot)', fontweight='bold')
+        axes[1,0].pie(caribbean_data['images'], labels=caribbean_data['region'].str.replace('Caribbean - Colombia', 'COL'), 
+                        autopct='%1.1f%%', startangle=90)
+        axes[1,0].set_title('Caribbean Region Detail\n(Tourism & Conservation Hotspot)', fontweight='bold')
         
         # Plot 4: Pacific diversity
         pacific_data = region_df[region_df['ocean'] == 'Pacific']
-        if not pacific_data.empty:
-            pacific_labels = pacific_data['region'].str.replace('Pacific - ', '')
-            axes[1,1].pie(pacific_data['images'], labels=pacific_labels,
-                         autopct='%1.1f%%', startangle=90)
-            axes[1,1].set_title('Pacific Region Diversity\n(International Cooperation Needs)', fontweight='bold')
+        pacific_labels = pacific_data['region'].str.replace('Pacific - ', '')
+        axes[1,1].pie(pacific_data['images'], labels=pacific_labels,
+                        autopct='%1.1f%%', startangle=90)
+        axes[1,1].set_title('Pacific Region Diversity\n(International Cooperation Needs)', fontweight='bold')
         
         plt.tight_layout()
         plt.savefig('geographic_sle_analysis.png', dpi=300, bbox_inches='tight')
@@ -321,12 +307,7 @@ class CoralDataExplorer:
         
         return region_df
     
-    def create_research_question_evidence_summary(self):
-        """Generate evidence summary supporting different RQ formulation approaches"""
-        print("\n" + "="*80)
-        print("RESEARCH QUESTION FORMULATION EVIDENCE SUMMARY")
-        print("="*80)
-        
+    def create_research_question_evidence_summary(self):        
         evidence = {
             "methodological_evidence": [
                 f"• {sum([self.dataset_stats['coralseg'][split]['images'] for split in self.dataset_stats['coralseg']])} images in CoralSeg benchmark dataset",
@@ -377,10 +358,6 @@ class CoralDataExplorer:
         for item in evidence["technical_efficiency_evidence"]:
             print(f"   {item}")
         
-        print("\n" + "="*80)
-        print("RECOMMENDATION FOR RQ FORMULATION APPROACH")
-        print("="*80)
-        
         print("""
 RECOMMENDED APPROACH: TWO COMPLEMENTARY RESEARCH QUESTIONS
 
@@ -420,47 +397,28 @@ be developed and deployed responsibly to support coastal communities globally?"
         
         return evidence
 
-def main():
-    """Main execution function"""
-    print("Starting Coral Data Analysis for Research Question Support...")
-    
-    # Initialize explorer
-    explorer = CoralDataExplorer()
-    
-    # Step 1: Analyze dataset distribution
-    print("\nStep 1: Analyzing dataset distribution...")
-    explorer.analyze_dataset_distribution()
-    
-    # Step 2: Create overview visualizations
-    print("\nStep 2: Creating dataset overview visualizations...")
-    explorer.visualize_dataset_overview()
-    
-    # Step 3: Analyze coral areas
-    print("\nStep 3: Analyzing coral areas and sizes...")
-    df, coral_counts, coral_areas = explorer.analyze_coral_areas_from_csv()
-    
-    if df is not None:
-        # Step 4: Create size analysis visualizations
-        print("\nStep 4: Creating coral size analysis visualizations...")
-        image_data, size_categories = explorer.visualize_coral_size_analysis(df, coral_counts, coral_areas)
-        
-        # Step 5: Geographic analysis for SLE
-        print("\nStep 5: Conducting geographic analysis for SLE aspects...")
-        region_df = explorer.analyze_geographic_distribution()
-        explorer.visualize_geographic_sle_analysis(region_df)
-        
-        # Step 6: Generate evidence summary
-        print("\nStep 6: Generating research question evidence summary...")
-        evidence = explorer.create_research_question_evidence_summary()
-        
-        print("\nAnalysis complete! Check the generated PNG files for visualizations.")
-        print("Files created:")
-        print("- coral_dataset_overview.png")
-        print("- coral_size_analysis.png") 
-        print("- geographic_sle_analysis.png")
-    
-    else:
-        print("Could not load coral area data. Check file paths.")
+explorer = CoralDataExplorer()
 
-if __name__ == "__main__":
-    main()
+# Step 1: Analyze dataset distribution
+explorer.analyze_dataset_distribution()
+
+# Step 2: Create overview visualizations
+explorer.visualize_dataset_overview()
+
+# Step 3: Analyze coral areas
+df, coral_counts, coral_areas = explorer.analyze_coral_areas_from_csv()
+
+# Step 4: Create size analysis visualizations
+image_data, size_categories = explorer.visualize_coral_size_analysis(df, coral_counts, coral_areas)
+
+# Step 5: Geographic analysis for SLE
+region_df = explorer.analyze_geographic_distribution()
+explorer.visualize_geographic_sle_analysis(region_df)
+
+# Step 6: Generate evidence summary
+evidence = explorer.create_research_question_evidence_summary()
+
+print("Files created:")
+print("- coral_dataset_overview.png")
+print("- coral_size_analysis.png") 
+print("- geographic_sle_analysis.png")
