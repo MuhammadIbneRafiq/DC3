@@ -23,6 +23,7 @@ model = SegformerForSemanticSegmentation.from_pretrained(model_name)
 model.eval()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print('are u gpu or what?', device)
 model.to(device)
 
 def resize_image(image, target_size=1024):
