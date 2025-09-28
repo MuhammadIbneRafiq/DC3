@@ -1,28 +1,8 @@
-# Requirements for Coral Data Analysis Scripts
-# Core data analysis and visualization
-numpy>=1.21.0
-pandas>=1.3.0
-matplotlib>=3.5.0
-seaborn>=0.11.0
-
-# Image processing
-pillow>=8.3.0
-opencv-python>=4.5.0
-scikit-image>=0.18.0
-
-# Machine learning
+torch>=2.0.0
+transformers>=4.30.0
+pillow>=9.0.0
 scikit-learn>=1.0.0
-scipy>=1.7.0
-
-# Path handling
-pathlib2>=2.3.0
-
-# Jupyter notebook support (optional)
-jupyter>=1.0.0
-ipykernel>=6.0.0
-
-# Progress bars and utilities
-tqdm>=4.60.0
-
-# Warning suppression
-warnings
+matplotlib>=3.5.0
+numpy>=1.21.0
+huggingface-hub>=0.15.0
+safetensors>=0.3.0
