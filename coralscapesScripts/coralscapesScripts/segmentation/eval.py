@@ -35,7 +35,7 @@ def get_batch_predictions_eval(data, model, device, preprocessor = None):
 
     if("pixel_values" and "labels" in data):  #For Segformer models
         target_sizes = [
-            (image.shape[1], image.shape[2]) for image in data["labels"]
+            (image.shape[1], image.shape[2]) for image in data["pixel_values"]
         ]
         outputs = model(
             pixel_values=data["pixel_values"].to(device),

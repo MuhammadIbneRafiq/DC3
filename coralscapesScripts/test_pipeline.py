@@ -5,35 +5,25 @@ import glob
 from datetime import datetime
 
 parser = argparse.ArgumentParser(description="Quick test of coral bleaching fine-tuning pipeline")
-parser.add_argument("--config", type=str, default="configs/coral_bleaching_dpt_dinov2.yaml", 
-                    help="Path to config file")
-parser.add_argument("--dataset-dir", type=str, default="../coralscapes", 
-                    help="Path to dataset directory")
-parser.add_argument("--test-images", type=int, default=10, 
-                    help="Number of images to use for testing")
-parser.add_argument("--train-ratio", type=float, default=0.6, 
-                    help="Ratio of images for training (default: 0.6 = 18/30)")
-parser.add_argument("--val-ratio", type=float, default=0.233, 
-                    help="Ratio of images for validation (default: 0.233 = 7/30)")
-parser.add_argument("--test-ratio", type=float, default=0.167, 
-                    help="Ratio of images for testing (default: 0.167 = 5/30)")
-parser.add_argument("--epochs", type=int, default=3, 
-                    help="Number of epochs for testing")
-parser.add_argument("--batch-size", type=int, default=2, 
-                    help="Training batch size")
-parser.add_argument("--device", type=str, default="gpu1", 
-                    choices=["cpu", "gpu1"], 
-                    help="Device to use for training")
-
+parser.add_argument("--config", type=str, default="configs/coral_bleaching_dpt_dinov2.yaml")
+parser.add_argument("--dataset-dir", type=str, default="../coralscapes") 
+parser.add_argument("--test-images", type=int, default=3)   
+parser.add_argument("--train-ratio", type=float, default=0.3333) 
+parser.add_argument("--val-ratio", type=float, default=0.33333) 
+parser.add_argument("--test-ratio", type=float, default=0.33333) 
+parser.add_argument("--epochs", type=int, default=3)   
+parser.add_argument("--batch-size", type=int, default=2)
+parser.add_argument("--device", type=str, default="cpu")
 args = parser.parse_args()
 
 random.seed(42)
 
-# Get all available images
+# Get all available images from the original dataset
 images_dir = os.path.join(args.dataset_dir, "images")
 all_images = sorted(glob.glob(os.path.join(images_dir, "*.jpg")))
 
-selected_images = random.sample(all_images, args.test_images)
+# Select only the specified number of test images
+selected_images = random.sample(all_images, min(args.test_images, len(all_images)))
 
 print(f"🎯 Selected {len(selected_images)} images for testing")
 
@@ -75,20 +65,12 @@ for img_path in selected_images:
     if os.path.exists(non_bleached_mask_src):
         shutil.copy2(non_bleached_mask_src, non_bleached_mask_dst)
 
-
+print(f"✅ Test dataset created with {len(selected_images)} images")
 # Create a unique run name with timestamp
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 run_name = f"test_run_{timestamp}"
 
-# Convert device format for fine_tune_pipeline.py
-if args.device == "gpu1":
-    device_arg = "cuda:1"
-elif args.device == "gpu0":
-    device_arg = "cuda:0"
-else:
-    device_arg = args.device
-
-# Build the command for fine-tuning pipeline
+device_arg = args.device
 cmd = [
     "python", "fine_tune_pipeline.py",
     f"--config={args.config}",
@@ -100,7 +82,6 @@ cmd = [
     f"--device={device_arg}"
 ]
 
-print(f"\n🚀 Running test pipeline with:")
 print(f"   Config: {args.config}")
 print(f"   Dataset: {test_dir}")
 print(f"   Epochs: {args.epochs}")

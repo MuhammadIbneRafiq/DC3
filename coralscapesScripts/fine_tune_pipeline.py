@@ -254,8 +254,44 @@ def cleanup_memory():
 def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000):
     initial_memory = get_memory_usage()    
     try:
-        # Run evaluation
-        results = evaluator.evaluate_model(dataloader, model, split=split)
+        # Wrap the model evaluation in a custom evaluation loop for DPT
+        if hasattr(model, 'config') and 'dpt' in str(model.config).lower():
+            # Custom evaluation for DPT model
+            model.eval()
+            metric_results = {}
+            with torch.no_grad():
+                for metric in evaluator.metric_dict.values():
+                    metric.reset()
+                
+                for data in dataloader:
+                    if data is None:
+                        continue
+                    
+                    preprocessed_batch = preprocess_batch(data, evaluator.preprocessor)
+                    if isinstance(preprocessed_batch, dict) and "pixel_values" in preprocessed_batch:
+                        inputs = preprocessed_batch["pixel_values"].to(evaluator.device)
+                        labels = preprocessed_batch["labels"].to(evaluator.device) if "labels" in preprocessed_batch else data[1].to(evaluator.device)
+                        outputs = model(inputs)
+                        if hasattr(outputs, "logits"):
+                            outputs = outputs.logits
+                            outputs = torch.nn.functional.interpolate(outputs, size=labels.shape[-2:], mode="bilinear", align_corners=False)
+                        outputs = outputs.argmax(dim=1)
+                        
+                        # Update metrics
+                        for metric in evaluator.metric_dict.values():
+                            metric.update(outputs, labels)
+                
+                # Compute final metrics
+                for metric_name, metric in evaluator.metric_dict.items():
+                    metric_results[metric_name] = metric.compute().cpu().numpy()
+                    if metric_results[metric_name].ndim == 0:
+                        metric_results[metric_name] = metric_results[metric_name].item()
+                    metric.reset()
+            
+            results = metric_results
+        else:
+            # Standard evaluation for other models
+            results = evaluator.evaluate_model(dataloader, model, split=split)
         
         # Check memory usage after evaluation
         current_memory = get_memory_usage()
@@ -358,8 +394,20 @@ def train_epoch_with_progress(benchmark_run, train_loader, epoch, total_epochs, 
         batch_start_time = time.time()
         
         benchmark_run.optimizer.zero_grad()
+        # Handle DPT model's special preprocessing
         preprocessed_batch = preprocess_batch(data, benchmark_run.preprocessor)
-        outputs, loss = get_batch_predictions(preprocessed_batch, benchmark_run.model, benchmark_run.device, loss_fn=benchmark_run.loss)
+        if isinstance(preprocessed_batch, dict) and "pixel_values" in preprocessed_batch:
+            # For DPT model, use pixel_values and labels
+            inputs = preprocessed_batch["pixel_values"].to(benchmark_run.device)
+            labels = preprocessed_batch["labels"].to(benchmark_run.device) if "labels" in preprocessed_batch else data[1].to(benchmark_run.device)
+            outputs = benchmark_run.model(inputs)
+            if hasattr(outputs, "logits"):
+                outputs = outputs.logits
+                outputs = torch.nn.functional.interpolate(outputs, size=labels.shape[-2:], mode="bilinear", align_corners=False)
+            loss = benchmark_run.loss(outputs, labels)
+        else:
+            # For other models, use standard processing
+            outputs, loss = get_batch_predictions(preprocessed_batch, benchmark_run.model, benchmark_run.device, loss_fn=benchmark_run.loss)
         loss.backward()
         benchmark_run.optimizer.step()
         
@@ -425,9 +473,21 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
                 label_windows = label_windows.view(-1, *label_windows.shape[-2:])
                 data = (input_windows, label_windows)
             
+            # Handle DPT model's special preprocessing
             preprocessed_batch = preprocess_batch(data, benchmark_run.preprocessor)
-            outputs, loss = get_batch_predictions(preprocessed_batch, benchmark_run.model, 
-                                                benchmark_run.device, loss_fn=benchmark_run.loss)
+            if isinstance(preprocessed_batch, dict) and "pixel_values" in preprocessed_batch:
+                # For DPT model, use pixel_values and labels
+                inputs = preprocessed_batch["pixel_values"].to(benchmark_run.device)
+                labels = preprocessed_batch["labels"].to(benchmark_run.device) if "labels" in preprocessed_batch else data[1].to(benchmark_run.device)
+                outputs = benchmark_run.model(inputs)
+                if hasattr(outputs, "logits"):
+                    outputs = outputs.logits
+                    outputs = torch.nn.functional.interpolate(outputs, size=labels.shape[-2:], mode="bilinear", align_corners=False)
+                loss = benchmark_run.loss(outputs, labels)
+            else:
+                # For other models, use standard processing
+                outputs, loss = get_batch_predictions(preprocessed_batch, benchmark_run.model, 
+                                                    benchmark_run.device, loss_fn=benchmark_run.loss)
             running_loss += loss.item()
             
             batch_time = time.time() - batch_start_time
@@ -454,6 +514,8 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
 def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger, cfg):
     """Enhanced training loop with comprehensive progress tracking"""
     best_val_mean_iou = 0.
+    best_val_mean_accuracy = 0.
+    best_vloss = float('inf')
     best_epoch = -1
     
     total_epochs = benchmark_run.training_hyperparameters["epochs"]
@@ -620,7 +682,7 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
         root_dir=dataset_dir,
         images=val_images,
         transform=transforms["val"],
-        transform_target=cfg.training.eval.transform_target if cfg.training.eval is not None and cfg.training.eval.transform_target is not None else True,
+        transform_target=True,  # Always transform targets to match input size
         split='val'
     )
     
@@ -702,7 +764,7 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     
     # Save the model
     save_path = f"./checkpoints/fold{fold+1}/{run_name}_final.pth"
-    save_benchmark_run(benchmark_run, benchmark_metrics, save_path)
+    save_benchmark_run(benchmark_run, benchmark_metrics)
     
     # Final memory cleanup for this fold
     final_memory = get_memory_usage()
