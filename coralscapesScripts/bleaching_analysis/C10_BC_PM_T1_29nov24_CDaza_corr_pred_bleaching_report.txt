@@ -1,0 +1,32 @@
+
+CORAL BLEACHING ANALYSIS REPORT
+==============================
+
+Image: C10_BC_PM_T1_29nov24_CDaza_corr_pred.png
+Total pixels: 7,768,989
+Coral pixels: 2,032,076 (26.16% of image)
+
+BLEACHING STATUS:
+- Alive corals: 9,236 pixels (0.45% of corals)
+- Bleached corals: 11,860 pixels (0.58% of corals)
+- Dead corals: 2,010,980 pixels (98.96% of corals)
+
+DETAILED CORAL BREAKDOWN:
+- branching_alive: 6,544 pixels (0.32% of corals)
+- acropora_alive: 957 pixels (0.05% of corals)
+- table_acropora_alive: 487 pixels (0.02% of corals)
+- pocillopora_alive: 1,200 pixels (0.06% of corals)
+- stylophora_alive: 48 pixels (0.00% of corals)
+- branching_bleached: 410 pixels (0.02% of corals)
+- massive_meandering_bleached: 1,467 pixels (0.07% of corals)
+- other_coral_bleached: 5,588 pixels (0.27% of corals)
+- meandering_bleached: 4,395 pixels (0.22% of corals)
+- massive_meandering_dead: 747,436 pixels (36.78% of corals)
+- other_coral_dead: 28,693 pixels (1.41% of corals)
+- meandering_dead: 1,234,843 pixels (60.77% of corals)
+- table_acropora_dead: 8 pixels (0.00% of corals)
+
+BLEACHING ASSESSMENT: 🟢 LOW BLEACHING
+
+Health Score: 0.5/100
+Bleaching Score: 0.6/100
