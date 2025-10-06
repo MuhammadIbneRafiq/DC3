@@ -75,7 +75,7 @@ class CoralReefDataset(Dataset):
         # Define mapping from original 40 classes to our 3 classes
         # Based on the Coralscapes dataset class definitions
         self.class_mapping = {
-            # Background classes -> 0
+            # no bleached classes -> 0
             0: 0,   # background
             1: 0,   # seagrass
             2: 0,   # sand
@@ -91,35 +91,33 @@ class CoralReefDataset(Dataset):
             14: 0,  # dark
             15: 0,  # algae_covered_substrate
             
-            # Bleached coral classes -> 2
-            16: 2,  # massive_meandering_bleached -> bleached
-            17: 1,  # massive_meandering_alive
-            18: 1,  # rubble (coral rubble)
-            19: 2,  # branching_bleached -> bleached
-            20: 1,  # branching_dead -> non-bleached (dead but not bleached)
-            21: 1,  # millepora
-            22: 1,  # branching_alive
-            23: 1,  # massive_meandering_dead -> non-bleached (dead but not bleached)
-            24: 1,  # clam
-            25: 1,  # acropora_alive
-            26: 1,  # sea_cucumber
-            27: 1,  # turbinaria
-            28: 1,  # table_acropora_alive
-            29: 1,  # sponge
-            30: 1,  # anemone
-            31: 1,  # pocillopora_alive
-            32: 1,  # table_acropora_dead -> non-bleached (dead but not bleached)
-            33: 2,  # meandering_bleached -> bleached
-            34: 1,  # stylophora_alive
-            35: 1,  # sea_urchin
-            36: 1,  # meandering_alive
-            37: 1,  # meandering_dead -> non-bleached (dead but not bleached)
-            38: 1,  # crown_of_thorn
-            39: 1,  # dead_clam
-            
-            # Bleached coral classes -> 2
-            3: 2,   # other_coral_bleached
-            4: 2,   # other_coral_bleached
+            # Bleached coral classes -> 1     
+            3: 1,   # other_coral_bleached
+            4: 1,   # other_coral_bleached
+            16: 1,  # massive_meandering_bleached -> bleached
+            17: 0,  # massive_meandering_alive
+            18: 0,  # rubble (coral rubble)
+            19: 1,  # branching_bleached -> bleached
+            20: 0,  # branching_dead -> non-bleached (dead but not bleached)
+            21: 0,  # millepora
+            22: 0,  # branching_alive
+            23: 0,  # massive_meandering_dead -> non-bleached (dead but not bleached)
+            24: 0,  # clam
+            25: 0,  # acropora_alive
+            26: 0,  # sea_cucumber
+            27: 0,  # turbinaria
+            28: 0,  # table_acropora_alive
+            29: 0,  # sponge
+            30: 0,  # anemone
+            31: 0,  # pocillopora_alive
+            32: 0,  # table_acropora_dead -> non-bleached (dead but not bleached)
+            33: 1,  # meandering_bleached -> bleached
+            34: 0,  # stylophora_alive
+            35: 0,  # sea_urchin
+            36: 0,  # meandering_alive
+            37: 0,  # meandering_dead -> non-bleached (dead but not bleached)
+            38: 0,  # crown_of_thorn
+            39: 0,  # dead_clam
         }
         
         # Define paths
@@ -187,6 +185,33 @@ class CoralReefDataset(Dataset):
         # Return in the format expected by the training pipeline
         return (image, mask)
 
+
+def custom_collate(batch):
+    """Custom collate function to handle variable-sized batches"""
+    if len(batch) == 0:
+        return None
+    
+    images = []
+    masks = []
+    
+    for image, mask in batch:
+        # Ensure the tensors are contiguous and in the right format
+        if isinstance(image, torch.Tensor):
+            image = image.contiguous()
+        if isinstance(mask, torch.Tensor):
+            mask = mask.contiguous()
+        images.append(image)
+        masks.append(mask)
+    
+    # Stack the tensors
+    try:
+        images = torch.stack(images)
+        masks = torch.stack(masks)
+    except:
+        # If stacking fails, return None to skip this batch
+        return None
+    
+    return images, masks
 
 def create_transforms(cfg):
     """Create data transformations based on config"""
@@ -375,6 +400,7 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
     
     running_loss = 0.0
     total_batches = len(val_loader)
+    valid_batches = 0  # Counter for valid batches
     batch_times = []
     
     with torch.no_grad():
@@ -384,6 +410,9 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
                         leave=False, unit="batch")
         
         for batch_idx, data in val_pbar:
+            if data is None:  # Skip invalid batches
+                continue
+            valid_batches += 1
             batch_start_time = time.time()
             
             # Process all batches regardless of size
@@ -418,7 +447,8 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
         
         val_pbar.close()
     
-    return running_loss / total_batches
+    # Return average loss over valid batches only
+    return running_loss / valid_batches if valid_batches > 0 else float('inf')
 
 
 def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger, cfg):
@@ -607,8 +637,9 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
         val_dataset, 
         batch_size=cfg.data.batch_size_eval, 
         shuffle=False, 
-        num_workers=2,
-        drop_last=True  # Add drop_last to ensure consistent batch sizes
+        num_workers=0,  # Set to 0 to avoid multiprocessing issues
+        collate_fn=custom_collate,  # Use custom collate function
+        drop_last=True
     )
     
     # Calculate class weights - create a simple wrapper for calculate_weights
