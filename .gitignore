@@ -1,0 +1,6 @@
+data/*
+.similar_images/*
+.dissimilar_images/*
+inference_results/*
+coralscapesScripts/coralscapesScripts/*
+coralscapes/
