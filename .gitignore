@@ -4,3 +4,4 @@ data/*
 inference_results/*
 # coralscapesScripts/coralscapesScripts/*
 coralscapes/
+test_data/

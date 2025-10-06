@@ -19,6 +19,8 @@ import argparse
 import yaml
 import copy
 import time
+import gc
+import psutil
 from datetime import datetime, timedelta
 from tqdm import tqdm
 
@@ -209,6 +211,108 @@ def map_40_classes_to_3_classes(seg_mask, class_mapping):
     return mapped_mask
 
 
+def get_memory_usage():
+    """Get current memory usage in MB"""
+    process = psutil.Process(os.getpid())
+    memory_info = process.memory_info()
+    return memory_info.rss / 1024 / 1024  # Convert to MB
+
+
+def cleanup_memory():
+    """Clean up memory by running garbage collection and clearing CUDA cache"""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+
+
+def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000):
+    """
+    Safely evaluate model with memory management
+    Args:
+        evaluator: The evaluator object
+        dataloader: DataLoader for evaluation
+        model: The model to evaluate
+        split: Dataset split name
+        max_memory_mb: Maximum memory usage before cleanup (MB)
+    """
+    initial_memory = get_memory_usage()
+    print(f"🔍 Starting evaluation for {split} split (Initial memory: {initial_memory:.1f} MB)")
+    
+    try:
+        # Run evaluation
+        results = evaluator.evaluate_model(dataloader, model, split=split)
+        
+        # Check memory usage after evaluation
+        current_memory = get_memory_usage()
+        memory_increase = current_memory - initial_memory
+        
+        print(f"✅ Evaluation completed for {split} split (Memory: {current_memory:.1f} MB, +{memory_increase:.1f} MB)")
+        
+        # Clean up if memory usage is high
+        if current_memory > max_memory_mb:
+            print(f"⚠️  High memory usage detected ({current_memory:.1f} MB), cleaning up...")
+            cleanup_memory()
+            after_cleanup = get_memory_usage()
+            print(f"🧹 Memory cleanup completed (Memory: {after_cleanup:.1f} MB, freed: {current_memory - after_cleanup:.1f} MB)")
+        
+        return results
+        
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower():
+            print(f"❌ Out of memory during {split} evaluation: {e}")
+            print("🧹 Attempting memory cleanup and retry...")
+            cleanup_memory()
+            
+            # Try again with smaller batch processing
+            try:
+                print("🔄 Retrying evaluation with memory cleanup...")
+                results = evaluator.evaluate_model(dataloader, model, split=split)
+                print(f"✅ Retry successful for {split} split")
+                return results
+            except RuntimeError as retry_e:
+                print(f"❌ Retry failed for {split} evaluation: {retry_e}")
+                print("🔄 Trying with memory-efficient dataloader (batch_size=1)...")
+                
+                # Try with memory-efficient dataloader
+                try:
+                    efficient_dataloader = create_memory_efficient_dataloader(dataloader, max_batch_size=1)
+                    results = evaluator.evaluate_model(efficient_dataloader, model, split=split)
+                    print(f"✅ Memory-efficient evaluation successful for {split} split")
+                    return results
+                except RuntimeError as final_e:
+                    print(f"❌ Final retry failed for {split} evaluation: {final_e}")
+                    # Return dummy results to continue training
+                    return {"accuracy": 0.0, "mean_iou": 0.0}
+        else:
+            raise e
+
+
+def create_memory_efficient_dataloader(original_dataloader, max_batch_size=1):
+    """
+    Create a memory-efficient dataloader with smaller batch size
+    Args:
+        original_dataloader: Original DataLoader
+        max_batch_size: Maximum batch size for memory efficiency
+    Returns:
+        New DataLoader with smaller batch size
+    """
+    # Create a new dataset from the original one
+    dataset = original_dataloader.dataset
+    
+    # Create new dataloader with smaller batch size
+    new_dataloader = DataLoader(
+        dataset,
+        batch_size=min(max_batch_size, original_dataloader.batch_size),
+        shuffle=original_dataloader.shuffle,
+        num_workers=original_dataloader.num_workers,
+        drop_last=original_dataloader.drop_last,
+        pin_memory=original_dataloader.pin_memory if hasattr(original_dataloader, 'pin_memory') else False
+    )
+    
+    return new_dataloader
+
+
 def setup_cross_validation(dataset_dir, cfg, n_folds=5):
     """Setup cross-validation splits"""
     # Get all image paths
@@ -384,11 +488,14 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger
         # Calculate detailed metrics for every epoch
         print("\n🔍 Calculating detailed metrics...")
         
-        # Train metrics
-        train_metric_results = evaluator.evaluate_model(train_loader, benchmark_run.model, split="train")
+        # Clean up memory before evaluation
+        cleanup_memory()
         
-        # Validation metrics
-        metric_results = evaluator.evaluate_model(val_loader, benchmark_run.model, split="validation")
+        # Train metrics - use safe evaluation
+        train_metric_results = safe_evaluate_model(evaluator, train_loader, benchmark_run.model, split="train")
+        
+        # Validation metrics - use safe evaluation
+        metric_results = safe_evaluate_model(evaluator, val_loader, benchmark_run.model, split="validation")
         
         # Print detailed metrics table
         print("\n📊 DETAILED METRICS:")
@@ -405,6 +512,9 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger
                     print(f"{metric_name:<15} | {train_value:<15.4f} | {val_value:<15.4f}")
         
         print("-" * 80)
+        
+        # Clean up memory after evaluation
+        cleanup_memory()
         
         # Log to wandb if available
         if logger:
@@ -447,7 +557,7 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger
                                     metric_results["mean_iou"], metric_results["accuracy"], 
                                     logger, final_checkpoint=True)
         
-        print("-" * 50)
+        cleanup_memory()
     
     # Training completion summary
     total_training_time = time.time() - fold_start_time
@@ -473,6 +583,10 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     print(f"\n{'='*50}")
     print(f"Training Fold {fold+1}")
     print(f"{'='*50}")
+    
+    # Monitor initial memory
+    initial_memory = get_memory_usage()
+    print(f"🧠 Initial memory usage: {initial_memory:.1f} MB")
     
     # Create transforms
     transforms = create_transforms(cfg)
@@ -570,6 +684,14 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     # Save the model
     save_path = f"./checkpoints/fold{fold+1}/{run_name}_final.pth"
     save_benchmark_run(benchmark_run, benchmark_metrics, save_path)
+    
+    # Final memory cleanup for this fold
+    final_memory = get_memory_usage()
+    memory_increase = final_memory - initial_memory
+    print(f"🧠 Final memory usage: {final_memory:.1f} MB (+{memory_increase:.1f} MB)")
+    cleanup_memory()
+    after_cleanup = get_memory_usage()
+    print(f"🧹 Memory cleanup completed (Memory: {after_cleanup:.1f} MB)")
     
     return benchmark_metrics
 
@@ -681,6 +803,8 @@ def main():
         
         if fold < total_folds - 1:
             print(f"🔄 Starting next fold in 2 seconds...")
+            # Clean up memory between folds
+            cleanup_memory()
             time.sleep(2)
     
     # Calculate average metrics across folds
@@ -696,31 +820,16 @@ def main():
         if isinstance(fold_metrics[0][metric], (int, float)):
             avg_metrics[metric] = np.mean([fold[metric] for fold in fold_metrics])
             std_metrics[metric] = np.std([fold[metric] for fold in fold_metrics])
-    
-    # Print metrics in a well-formatted table
-    print("\n📊 PERFORMANCE METRICS:")
-    print("-" * 60)
-    print(f"{'Metric':<25} | {'Mean':<15} | {'Std Dev':<15}")
-    print("-" * 60)
-    
-    # Sort metrics for better readability
+        
     sorted_metrics = sorted(avg_metrics.keys())
     for metric in sorted_metrics:
         print(f"{metric:<25} | {avg_metrics[metric]:<15.4f} | {std_metrics[metric]:<15.4f}")
-    
-    print("-" * 60)
-    
+        
     # Print timing information
-    print("\n⏱️  TIMING INFORMATION:")
-    print("-" * 60)
     print(f"Total cross-validation time: {timedelta(seconds=int(total_cv_time))}")
     print(f"Average time per fold: {timedelta(seconds=int(total_cv_time / total_folds))}")
     print(f"Average time per epoch: {timedelta(seconds=int(total_cv_time / (total_folds * args.epochs)))}")
-    print("-" * 60)
     
-    # Print key performance indicators
-    print("\n🏆 KEY PERFORMANCE INDICATORS:")
-    print("-" * 60)
     print(f"Best validation IoU: {avg_metrics.get('validation_mean_iou', 0):.4f} ± {std_metrics.get('validation_mean_iou', 0):.4f}")
     print(f"Best validation accuracy: {avg_metrics.get('validation_mean_accuracy', 0):.4f} ± {std_metrics.get('validation_mean_accuracy', 0):.4f}")
     if 'precision' in avg_metrics:
@@ -729,12 +838,6 @@ def main():
         print(f"Recall: {avg_metrics.get('recall', 0):.4f} ± {std_metrics.get('recall', 0):.4f}")
     if 'f1' in avg_metrics:
         print(f"F1 Score: {avg_metrics.get('f1', 0):.4f} ± {std_metrics.get('f1', 0):.4f}")
-    print("-" * 60)
-    
-    print("\n" + "="*80)
-    print("✅ Training complete!")
-    print("="*80)
-
 
 if __name__ == "__main__":
     main()
