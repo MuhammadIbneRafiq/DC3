@@ -227,18 +227,7 @@ def cleanup_memory():
 
 
 def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000):
-    """
-    Safely evaluate model with memory management
-    Args:
-        evaluator: The evaluator object
-        dataloader: DataLoader for evaluation
-        model: The model to evaluate
-        split: Dataset split name
-        max_memory_mb: Maximum memory usage before cleanup (MB)
-    """
-    initial_memory = get_memory_usage()
-    print(f"🔍 Starting evaluation for {split} split (Initial memory: {initial_memory:.1f} MB)")
-    
+    initial_memory = get_memory_usage()    
     try:
         # Run evaluation
         results = evaluator.evaluate_model(dataloader, model, split=split)
@@ -397,9 +386,7 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
         for batch_idx, data in val_pbar:
             batch_start_time = time.time()
             
-            if len(data[0]) == 1:  # Skip if batch size is one
-                continue
-                
+            # Process all batches regardless of size
             if benchmark_run.eval and benchmark_run.eval.sliding_window:
                 input_windows, label_windows = get_windows(data, benchmark_run.eval.window, 
                                                          benchmark_run.eval.stride, 
@@ -620,7 +607,8 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
         val_dataset, 
         batch_size=cfg.data.batch_size_eval, 
         shuffle=False, 
-        num_workers=2
+        num_workers=2,
+        drop_last=True  # Add drop_last to ensure consistent batch sizes
     )
     
     # Calculate class weights - create a simple wrapper for calculate_weights
