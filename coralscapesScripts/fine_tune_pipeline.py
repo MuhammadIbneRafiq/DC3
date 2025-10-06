@@ -180,9 +180,9 @@ class CoralReefDataset(Dataset):
             if self.transform_target:
                 mask = transformed["mask"]
         
-        # Convert to tensors
-        image = torch.from_numpy(image.transpose(2, 0, 1)).float()
-        mask = torch.from_numpy(mask).long()
+        # ANNOYING ERROR ALEROLKUDSIK!!! Convert to tensors and ensure they are contiguous
+        image = torch.from_numpy(image.transpose(2, 0, 1)).float().contiguous()
+        mask = torch.from_numpy(mask).long().contiguous()
         
         # Return in the format expected by the training pipeline
         return (image, mask)
