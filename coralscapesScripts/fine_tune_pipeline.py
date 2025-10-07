@@ -2,7 +2,7 @@
 """
 Coral Bleaching Detection Fine-Tuning Pipeline
 
-This script creates a complete pipeline for fine-tuning the DPT-DINOv2-Giant model
+This script creates a complete pipeline for fine-tuning the DPT-DINOv2-Giant_LoRA model
 on the coral reef dataset with cross-validation to detect coral bleaching.
 """
 
@@ -178,12 +178,11 @@ class CoralReefDataset(Dataset):
             if self.transform_target:
                 mask = transformed["mask"]
         
-        # ANNOYING ERROR ALEROLKUDSIK!!! Convert to tensors and ensure they are contiguous
+        # Convert to tensors and ensure they are contiguous
         image = torch.from_numpy(image.transpose(2, 0, 1)).float().contiguous()
         mask = torch.from_numpy(mask).long().contiguous()
         
-        # Return in the format expected by the training pipeline
-        return (image, mask)
+        return image, mask
 
 
 def custom_collate(batch):
@@ -195,23 +194,21 @@ def custom_collate(batch):
     masks = []
     
     for image, mask in batch:
-        # Ensure the tensors are contiguous and in the right format
-        if isinstance(image, torch.Tensor):
+        if isinstance(image, torch.Tensor):  # Ensure the tensors are contiguous and in the right format
             image = image.contiguous()
         if isinstance(mask, torch.Tensor):
             mask = mask.contiguous()
         images.append(image)
         masks.append(mask)
-    
-    # Stack the tensors
-    try:
+
+    try:  # Stack the tensors
         images = torch.stack(images)
         masks = torch.stack(masks)
-    except:
-        # If stacking fails, return None to skip this batch
+    except:  # If stacking fails, return None to skip this batch
         return None
     
     return images, masks
+
 
 def create_transforms(cfg):
     """Create data transformations based on config"""
@@ -225,11 +222,11 @@ def create_transforms(cfg):
         )
     return transforms
 
+
 def map_40_classes_to_3_classes(seg_mask, class_mapping):
     """Map 40-class segmentation mask to 3-class mask (background, non-bleached, bleached)"""
     mapped_mask = np.zeros(seg_mask.shape, dtype=np.uint8)
     
-    # Apply class mapping
     for original_class, mapped_class in class_mapping.items():
         mapped_mask[seg_mask == original_class] = mapped_class
     
@@ -240,24 +237,26 @@ def get_memory_usage():
     """Get current memory usage in MB"""
     process = psutil.Process(os.getpid())
     memory_info = process.memory_info()
+
     return memory_info.rss / 1024 / 1024  # Convert to MB
 
 
 def cleanup_memory():
     """Clean up memory by running garbage collection and clearing CUDA cache"""
     gc.collect()
+
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
 
 
 def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000):
-    initial_memory = get_memory_usage()    
+    initial_memory = get_memory_usage()
+
     try:
         # Wrap the model evaluation in a custom evaluation loop for DPT
         if hasattr(model, 'config') and 'dpt' in str(model.config).lower():
-            # Custom evaluation for DPT model
-            model.eval()
+            model.eval()  # Custom evaluation for DPT model
             metric_results = {}
             with torch.no_grad():
                 for metric in evaluator.metric_dict.values():
@@ -280,21 +279,18 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
                         # Update metrics
                         for metric in evaluator.metric_dict.values():
                             metric.update(outputs, labels)
-                
-                # Compute final metrics
-                for metric_name, metric in evaluator.metric_dict.items():
+
+                for metric_name, metric in evaluator.metric_dict.items():  # Compute final metrics
                     metric_results[metric_name] = metric.compute().cpu().numpy()
                     if metric_results[metric_name].ndim == 0:
                         metric_results[metric_name] = metric_results[metric_name].item()
                     metric.reset()
             
             results = metric_results
-        else:
-            # Standard evaluation for other models
+        else:  # Standard evaluation for other models
             results = evaluator.evaluate_model(dataloader, model, split=split)
-        
-        # Check memory usage after evaluation
-        current_memory = get_memory_usage()
+
+        current_memory = get_memory_usage()  # Check memory usage after evaluation
         memory_increase = current_memory - initial_memory
         
         print(f"✅ Evaluation completed for {split} split (Memory: {current_memory:.1f} MB, +{memory_increase:.1f} MB)")
@@ -310,30 +306,26 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
         
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
-            print(f"❌ Out of memory during {split} evaluation: {e}")
-            print("🧹 Attempting memory cleanup and retry...")
+            print(f"❌ Out of memory during {split} evaluation: {e}\n🧹 Attempting memory cleanup and retry...")
             cleanup_memory()
-            
-            # Try again with smaller batch processing
-            try:
+
+            try:  # Try again with smaller batch processing
                 print("🔄 Retrying evaluation with memory cleanup...")
                 results = evaluator.evaluate_model(dataloader, model, split=split)
                 print(f"✅ Retry successful for {split} split")
                 return results
             except RuntimeError as retry_e:
-                print(f"❌ Retry failed for {split} evaluation: {retry_e}")
-                print("🔄 Trying with memory-efficient dataloader (batch_size=1)...")
-                
-                # Try with memory-efficient dataloader
-                try:
+                print(f"❌ Retry failed for {split} evaluation: {retry_e}\n"
+                      f"🔄 Trying with memory-efficient dataloader (batch_size=1)...")
+
+                try:  # Try with memory-efficient dataloader
                     efficient_dataloader = create_memory_efficient_dataloader(dataloader, max_batch_size=1)
                     results = evaluator.evaluate_model(efficient_dataloader, model, split=split)
                     print(f"✅ Memory-efficient evaluation successful for {split} split")
                     return results
                 except RuntimeError as final_e:
                     print(f"❌ Final retry failed for {split} evaluation: {final_e}")
-                    # Return dummy results to continue training
-                    return {"accuracy": 0.0, "mean_iou": 0.0}
+                    return {"accuracy": 0.0, "mean_iou": 0.0}  # Return dummy results to continue training
         else:
             raise e
 
@@ -347,11 +339,8 @@ def create_memory_efficient_dataloader(original_dataloader, max_batch_size=1):
     Returns:
         New DataLoader with smaller batch size
     """
-    # Create a new dataset from the original one
-    dataset = original_dataloader.dataset
-    
-    # Create new dataloader with smaller batch size
-    new_dataloader = DataLoader(
+    dataset = original_dataloader.dataset  # Create a new dataset from the original one
+    new_dataloader = DataLoader(  # Create new dataloader with smaller batch size
         dataset,
         batch_size=min(max_batch_size, original_dataloader.batch_size),
         shuffle=original_dataloader.shuffle,
@@ -454,8 +443,7 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
     with torch.no_grad():
         # Create progress bar for validation
         val_pbar = tqdm(enumerate(val_loader), total=total_batches,
-                        desc=f"Epoch {epoch+1}/{total_epochs} - Validation",
-                        leave=False, unit="batch")
+                        desc=f"Epoch {epoch+1}/{total_epochs} - Validation", leave=False, unit="batch")
         
         for batch_idx, data in val_pbar:
             if data is None:  # Skip invalid batches
@@ -513,35 +501,28 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
 
 def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger, cfg):
     """Enhanced training loop with comprehensive progress tracking"""
-    best_val_mean_iou = 0.
-    best_val_mean_accuracy = 0.
-    best_vloss = float('inf')
-    best_epoch = -1
-    
+    best_val_mean_iou, best_val_mean_accuracy, best_vloss, best_epoch = 0., 0., float('inf'), -1
     total_epochs = benchmark_run.training_hyperparameters["epochs"]
     fold_start_time = time.time()
-    
-    # Create evaluator
-    if hasattr(benchmark_run, "preprocessor"):
+
+    if hasattr(benchmark_run, "preprocessor"):  # Create evaluator
         evaluator = Evaluator(N_classes=benchmark_run.N_classes, device=benchmark_run.device, 
                              preprocessor=benchmark_run.preprocessor, eval_params=benchmark_run.eval)
     else:
         evaluator = Evaluator(N_classes=benchmark_run.N_classes, device=benchmark_run.device, 
                              eval_params=benchmark_run.eval)
     
-    print(f"\n🚀 Starting training for {total_epochs} epochs")
-    print(f"📊 Training batches: {len(train_loader)} | Validation batches: {len(val_loader)}")
-    print(f"🖼️  Training images: {len(train_loader) * train_loader.batch_size} | Validation images: {len(val_loader) * val_loader.batch_size}")
-    print(f"⏱️  Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*80)
-    
+    print(f"\n🚀 Starting training for {total_epochs} epochs\n"
+          f"📊 Training batches: {len(train_loader)} | Validation batches: {len(val_loader)}\n"
+          f"🖼️ Training images: {len(train_loader) * train_loader.batch_size} | Validation images: {len(val_loader) * val_loader.batch_size}\n"
+          f"⏱️ Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'-'*80}")
+
     # Main training loop with progress tracking
     for epoch in range(total_epochs):
         epoch_start_time = time.time()
         
-        print(f"\n📈 EPOCH {epoch+1}/{total_epochs}")
-        print("-" * 50)
-        
+        print(f"📈 EPOCH {epoch+1}/{total_epochs}\n{'-'*80}")
+
         # Training phase
         train_loss = train_epoch_with_progress(benchmark_run, train_loader, epoch, total_epochs, epoch_start_time)
         
@@ -559,29 +540,19 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger
         estimated_remaining_time = avg_epoch_time * (total_epochs - epoch - 1)
         
         # Print epoch summary
-        print(f"✅ Epoch {epoch+1} completed in {epoch_time:.1f}s")
-        print(f"📉 Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
-        print(f"⏰ Time elapsed: {timedelta(seconds=int(total_time_elapsed))} | "
-              f"ETA: {timedelta(seconds=int(estimated_remaining_time))}")
+        print(f"✅ Epoch {epoch+1} completed in {epoch_time:.1f}s\n📉 Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}\n"
+              f"⏰ Time elapsed: {timedelta(seconds=int(total_time_elapsed))} | "
+              f"ETA: {timedelta(seconds=int(estimated_remaining_time))}\n🔍 Calculating detailed metrics...")
+
+        cleanup_memory()  # Clean up memory before evaluation
         
-        # Calculate detailed metrics for every epoch
-        print("\n🔍 Calculating detailed metrics...")
-        
-        # Clean up memory before evaluation
-        cleanup_memory()
-        
-        # Train metrics - use safe evaluation
+        # Use safe evaluation
         train_metric_results = safe_evaluate_model(evaluator, train_loader, benchmark_run.model, split="train")
-        
-        # Validation metrics - use safe evaluation
         metric_results = safe_evaluate_model(evaluator, val_loader, benchmark_run.model, split="validation")
         
         # Print detailed metrics table
-        print("\n📊 DETAILED METRICS:")
-        print("-" * 80)
-        print(f"{'Metric':<15} | {'Train':<15} | {'Validation':<15}")
-        print("-" * 80)
-        
+        print(f"\n📊 DETAILED METRICS:\n{'-'*80}\n{'Metric':<15} | {'Train':<15} | {'Validation':<15}\n{'-'*80}")
+
         # Print common metrics in a table format
         for metric_name in sorted(metric_results.keys()):
             if metric_name in train_metric_results:
@@ -590,13 +561,10 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger
                 if isinstance(train_value, (int, float)):
                     print(f"{metric_name:<15} | {train_value:<15.4f} | {val_value:<15.4f}")
         
-        print("-" * 80)
-        
-        # Clean up memory after evaluation
-        cleanup_memory()
-        
-        # Log to wandb if available
-        if logger:
+        print('-'*80)
+        cleanup_memory()  # Clean up memory after evaluation
+
+        if logger:  # Log to wandb if available
             logger.log({
                 "train/loss": train_loss,
                 "validation/loss": val_loss,
@@ -640,12 +608,10 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger
     
     # Training completion summary
     total_training_time = time.time() - fold_start_time
-    print(f"\n🎉 Training completed!")
-    print(f"⏱️  Total training time: {timedelta(seconds=int(total_training_time))}")
-    print(f"🏆 Best validation IoU: {best_val_mean_iou:.4f} (Epoch {best_epoch+1})")
-    print(f"📈 Best validation accuracy: {best_val_mean_accuracy:.4f}")
-    print("="*80)
-    
+    print(f"\n🎉 Training completed!\n⏱️ Total training time: {timedelta(seconds=int(total_training_time))}\n"
+          f"🏆 Best validation IoU: {best_val_mean_iou:.4f} (Epoch {best_epoch+1})\n"
+          f"📈 Best validation accuracy: {best_val_mean_accuracy:.4f}\n{'-'*80}")
+
     results_dict = {
         "validation_loss": best_vloss,
         "validation_mean_iou": best_val_mean_iou,
@@ -659,16 +625,10 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger
 
 def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     """Train a single fold"""
-    print(f"\n{'='*50}")
-    print(f"Training Fold {fold+1}")
-    print(f"{'='*50}")
-    
-    # Monitor initial memory
-    initial_memory = get_memory_usage()
-    print(f"🧠 Initial memory usage: {initial_memory:.1f} MB")
-    
-    # Create transforms
-    transforms = create_transforms(cfg)
+    initial_memory = get_memory_usage()  # Monitor initial memory
+    print(f"{'-' * 80}\nTraining Fold {fold + 1}\n{'-' * 80}\n🧠 Initial memory usage: {initial_memory:.1f} MB")
+
+    transforms = create_transforms(cfg)  # Create transforms
     
     # Create datasets
     train_dataset = CoralReefDataset(
@@ -779,9 +739,9 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
 
 def main():
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Fine-tune DPT-DINOv2-Giant for coral bleaching detection")
-    parser.add_argument("--config", type=str, default="configs/dpt-dinov2-giant.yaml", help="Path to config file")
-    parser.add_argument("--dataset-dir", type=str, default="../coralscapes", help="Path to dataset directory")
+    parser = argparse.ArgumentParser(description="Fine-tune DPT-DINOv2-Giant LoRA for coral bleaching detection")
+    parser.add_argument("--config", type=str, default="configs/dpt-dinov2-giant_lora.yaml", help="Path to config file")
+    parser.add_argument("--dataset-dir", type=str, default="data", help="Path to dataset directory")
     parser.add_argument("--n-folds", type=int, default=5, help="Number of cross-validation folds")
     parser.add_argument("--run-name", type=str, default=f"coral_bleaching_{datetime.now().strftime('%Y%m%d_%H%M%S')}", help="Run name")
     parser.add_argument("--batch-size", type=int, default=2, help="Training batch size")
@@ -854,17 +814,15 @@ def main():
     total_folds = args.n_folds
     cv_start_time = time.time()
     
-    print(f"\n🔄 Starting {total_folds}-fold cross-validation")
-    print(f"📁 Total images: {len(all_images)}")
-    print(f"⏱️  Cross-validation started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*80)
+    print(f"\n🔄 Starting {total_folds}-fold cross-validation \n📁 Total images: {len(all_images)}\n"
+          f"⏱️ Cross-validation started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'-'*80}")
     
     for fold, (train_idx, val_idx) in enumerate(kfold.split(all_images)):
         train_images = [all_images[i] for i in train_idx]
         val_images = [all_images[i] for i in val_idx]
         
-        print(f"\n🔄 Fold {fold+1}/{total_folds}")
-        print(f"📊 Train images: {len(train_images)} | Validation images: {len(val_images)}")
+        print(f"🔄 Fold {fold+1}/{total_folds} \n"
+              f"📊 Train images: {len(train_images)} | Validation images: {len(val_images)}")
         
         fold_start_time = time.time()
         metrics = train_fold(fold, train_images, val_images, args.dataset_dir, cfg, device)
@@ -878,25 +836,19 @@ def main():
         remaining_folds = total_folds - fold - 1
         estimated_remaining_cv_time = avg_fold_time * remaining_folds
         
-        print(f"✅ Fold {fold+1} completed in {timedelta(seconds=int(fold_time))}")
-        print(f"⏰ CV Time elapsed: {timedelta(seconds=int(elapsed_cv_time))} | "
+        print(f"✅ Fold {fold+1} completed in {timedelta(seconds=int(fold_time))}\n"
+              f"⏰ CV Time elapsed: {timedelta(seconds=int(elapsed_cv_time))} | "
               f"CV ETA: {timedelta(seconds=int(estimated_remaining_cv_time))}")
         
         if fold < total_folds - 1:
             print(f"🔄 Starting next fold in 2 seconds...")
-            # Clean up memory between folds
-            cleanup_memory()
+            cleanup_memory()  # Clean up memory between folds
             time.sleep(2)
-    
-    # Calculate average metrics across folds
-    total_cv_time = time.time() - cv_start_time
-    print("\n" + "="*80)
-    print("🎉 CROSS-VALIDATION RESULTS")
-    print("="*80)
-    
-    # Collect all metrics
-    avg_metrics = {}
-    std_metrics = {}
+
+    total_cv_time = time.time() - cv_start_time  # Calculate average metrics across folds
+    print(f"\n{'-' * 80}\n🎉 CROSS-VALIDATION RESULTS\n{'-' * 80}\n")
+
+    avg_metrics, std_metrics = {}, {}  # Collect all metrics
     for metric in fold_metrics[0].keys():
         if isinstance(fold_metrics[0][metric], (int, float)):
             avg_metrics[metric] = np.mean([fold[metric] for fold in fold_metrics])
@@ -907,12 +859,11 @@ def main():
         print(f"{metric:<25} | {avg_metrics[metric]:<15.4f} | {std_metrics[metric]:<15.4f}")
         
     # Print timing information
-    print(f"Total cross-validation time: {timedelta(seconds=int(total_cv_time))}")
-    print(f"Average time per fold: {timedelta(seconds=int(total_cv_time / total_folds))}")
-    print(f"Average time per epoch: {timedelta(seconds=int(total_cv_time / (total_folds * args.epochs)))}")
-    
-    print(f"Best validation IoU: {avg_metrics.get('validation_mean_iou', 0):.4f} ± {std_metrics.get('validation_mean_iou', 0):.4f}")
-    print(f"Best validation accuracy: {avg_metrics.get('validation_mean_accuracy', 0):.4f} ± {std_metrics.get('validation_mean_accuracy', 0):.4f}")
+    print(f"Total cross-validation time: {timedelta(seconds=int(total_cv_time))}\n"
+          f"Average time per fold: {timedelta(seconds=int(total_cv_time / total_folds))}\n"
+          f"Average time per epoch: {timedelta(seconds=int(total_cv_time / (total_folds * args.epochs)))}\n"
+          f"Best validation IoU: {avg_metrics.get('validation_mean_iou', 0):.4f} ± {std_metrics.get('validation_mean_iou', 0):.4f}\n"
+          f"Best validation accuracy: {avg_metrics.get('validation_mean_accuracy', 0):.4f} ± {std_metrics.get('validation_mean_accuracy', 0):.4f}")
     if 'precision' in avg_metrics:
         print(f"Precision: {avg_metrics.get('precision', 0):.4f} ± {std_metrics.get('precision', 0):.4f}")
     if 'recall' in avg_metrics:

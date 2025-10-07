@@ -2,9 +2,7 @@
 """
 Run script for coral bleaching fine-tuning
 """
-
 import os
-import sys
 import argparse
 from datetime import datetime
 import torch
@@ -12,14 +10,14 @@ import torch
 def main():
     parser = argparse.ArgumentParser(description="Run coral bleaching fine-tuning")
     parser.add_argument("--config", type=str, default="configs/coral_bleaching_dpt_dinov2.yaml", 
-                        help="Path to config file")
-    parser.add_argument("--dataset-dir", type=str, default="../coralscapes", 
+                        help="Path to config file")  # configs/dpt-dinov2-giant_lora.yaml
+    parser.add_argument("--dataset-dir", type=str, default="data",
                         help="Path to dataset directory")
     parser.add_argument("--n-folds", type=int, default=5, 
                         help="Number of cross-validation folds")
     parser.add_argument("--batch-size", type=int, default=2, 
                         help="Training batch size")
-    parser.add_argument("--epochs", type=int, default=50, 
+    parser.add_argument("--epochs", type=int, default=1,
                         help="Number of epochs")
     parser.add_argument("--device", type=str, default="gpu1", 
                         choices=["cpu", "gpu1"], 
@@ -62,11 +60,9 @@ def main():
         f"--device={device}"
     ]
     
-    # Print the command
+    # Print and execute the command
     print("Running command:")
     print(" ".join(cmd))
-    
-    # Execute the command
     os.system(" ".join(cmd))
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ from datetime import datetime
 
 parser = argparse.ArgumentParser(description="Quick test of coral bleaching fine-tuning pipeline")
 parser.add_argument("--config", type=str, default="configs/coral_bleaching_dpt_dinov2.yaml")
-parser.add_argument("--dataset-dir", type=str, default="../coralscapes") 
+parser.add_argument("--dataset-dir", type=str, default="data")
 parser.add_argument("--test-images", type=int, default=3)   
 parser.add_argument("--train-ratio", type=float, default=0.3333) 
 parser.add_argument("--val-ratio", type=float, default=0.33333) 
