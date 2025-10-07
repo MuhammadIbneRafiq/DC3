@@ -8,6 +8,10 @@ on the coral reef dataset with cross-validation to detect coral bleaching.
 
 import os
 import sys
+
+# Set CUDA memory allocation configuration before importing torch
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
 import torch
 import numpy as np
 import albumentations as A

@@ -5,6 +5,10 @@ Run script for coral bleaching fine-tuning
 import os
 import argparse
 from datetime import datetime
+
+# Set CUDA memory allocation configuration before importing torch
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
 import torch
 
 def main():
