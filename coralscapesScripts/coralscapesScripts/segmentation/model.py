@@ -167,10 +167,16 @@ class Benchmark_Run:
                 self.model.load_state_dict(torch.load(model_checkpoint))
 
         ## Load training procedure: optimizer, scheduler, loss
-        optimizer = training_hyperparameters.optimizer.pop("type", None)
-        lr_multiplier = training_hyperparameters.optimizer.pop("lr_multiplier", None)
+        # Make a copy of optimizer config to avoid modifying the original
+        optimizer_config = training_hyperparameters.optimizer.copy()
+        optimizer_type = optimizer_config.pop("type", None)
+        lr_multiplier = optimizer_config.pop("lr_multiplier", None)
+        
+        # Convert string to actual optimizer class
+        optimizer = eval(optimizer_type) if isinstance(optimizer_type, str) else optimizer_type
+        
         if(lr_multiplier):
-            backbone_regex = training_hyperparameters.optimizer.pop("backbone_regex", None)
+            backbone_regex = optimizer_config.pop("backbone_regex", None)
             backbone_params = []
             other_params = []
             for name, param in self.model.named_parameters():
@@ -179,19 +185,22 @@ class Benchmark_Run:
                 else:
                     other_params.append(param)
 
-            lr = training_hyperparameters.optimizer.pop("lr", None)
+            lr = optimizer_config.pop("lr", None)
 
-            self.optimizer = eval(optimizer)([
+            self.optimizer = optimizer([
                 {"params": backbone_params, "lr": lr * lr_multiplier},
                 {"params": other_params, "lr": lr}
-            ], **training_hyperparameters.optimizer)
+            ], **optimizer_config)
 
         else:
-            self.optimizer = eval(optimizer)(params = self.model.parameters(), **training_hyperparameters.optimizer)
+            self.optimizer = optimizer(params = self.model.parameters(), **optimizer_config)
 
         if(training_hyperparameters.scheduler):
-            scheduler = training_hyperparameters.scheduler.pop("type", None)
-            self.scheduler = eval(scheduler)(self.optimizer, **training_hyperparameters.scheduler)
+            scheduler_config = training_hyperparameters.scheduler.copy()
+            scheduler_type = scheduler_config.pop("type", None)
+            # Convert string to actual scheduler class
+            scheduler = eval(scheduler_type) if isinstance(scheduler_type, str) else scheduler_type
+            self.scheduler = scheduler(self.optimizer, **scheduler_config)
 
         if(training_hyperparameters.loss):
             loss = training_hyperparameters.loss.pop("type", None)
