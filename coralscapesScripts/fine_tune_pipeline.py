@@ -10,7 +10,7 @@ import os
 import sys
 
 # Set CUDA memory allocation configuration before importing torch
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True,max_split_size_mb:128'
 
 import torch
 import numpy as np
@@ -252,6 +252,8 @@ def cleanup_memory():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
+        # Force garbage collection of CUDA tensors
+        torch.cuda.ipc_collect()
 
 
 def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000):
@@ -428,6 +430,10 @@ def train_epoch_with_progress(benchmark_run, train_loader, epoch, total_epochs, 
             'Time/batch': f'{avg_batch_time:.2f}s',
             'ETA': f'{estimated_batch_time:.0f}s'
         })
+        
+        # Clean up memory every 10 batches to prevent accumulation
+        if (batch_idx + 1) % 10 == 0:
+            cleanup_memory()
     
     batch_pbar.close()
     return running_loss / total_batches

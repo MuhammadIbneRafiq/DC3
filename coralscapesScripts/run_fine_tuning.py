@@ -7,7 +7,7 @@ import argparse
 from datetime import datetime
 
 # Set CUDA memory allocation configuration before importing torch
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True,max_split_size_mb:128'
 
 import torch
 
