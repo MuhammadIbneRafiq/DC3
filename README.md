@@ -1,34 +1,233 @@
-# Group 3
-## JBG060 Capstone Data Challenge  2025-2026 Q1
-This repository contains the code for the course JBG060 Capstone Data Challenge .
-Please read this document carefully as it has been filled out with important information.
+# Group 3 - Coral Bleaching Detection
+## JBG060 Capstone Data Challenge 2025-2026 Q1
 
-## Code structure
+This repository contains the code for coral bleaching detection using deep learning models. The project implements a comprehensive fine-tuning pipeline for semantic segmentation of coral reef images to identify bleached and non-bleached coral regions.
 
-## Environment setup instructions
-### Environment setup instructions for non-GPU-equipped devices
-### Environment setup instructions for GPU-equipped devices
+## 🚀 Quick Start
 
-## Argparse
-Argparse functionality is included 
+### Environment Setup
 
-[//]: # ( template!!! was used for dc1!!!!!!! in the main.py file. This means the file can be run from the command line while passing arguments to the main function. Right now, there are arguments included for the number of epochs &#40;nb_epochs&#41;, batch size &#40;batch_size&#41;, whether to create balanced batches &#40;balanced_batches&#41;, whether to perform the eda or not &#40;eda&#41;, and whether to show the interpretability using Grad-CAM &#40;int&#41;.)
+#### For GPU-equipped devices (Recommended)
+```bash
+# Clone the repository
+git clone <repository-url>
+cd DC3
 
-[//]: # ()
-[//]: # (To make use of this functionality, first open the command prompt and change to the directory containing the main.py file.)
+# Install dependencies
+pip install -r requirements.txt
 
-[//]: # (For example, if you're main file is in C:\Data-Challenge-1-template-main\dc1\, )
+# For coral reef fine-tuning (additional dependencies)
+cd coralscapesScripts
+pip install -e .
+```
 
-[//]: # (type `cd C:\Data-Challenge-1-template-main\dc1\` into the command prompt and press enter.)
+#### For CPU-only devices
+```bash
+# Install basic dependencies
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
+```
 
-[//]: # ()
-[//]: # (Then, main.py can be run by, for example, typing `python main.py --nb_epochs 10 --batch_size 25 --eda true --int true`.)
+## 🧠 Fine-tuning Pipeline
 
-[//]: # (This would run the script with 10 epochs, a batch size of 25, balanced batches, perform the eda pipeline, and show Grad-CAM, which is also the current default.)
+### Overview
+The fine-tuning pipeline is designed to train deep learning models for coral bleaching detection using semantic segmentation. It supports multiple model architectures and includes cross-validation for robust evaluation.
 
-[//]: # (If you would want to run the script with 20 epochs, a batch size of 5, batches that are not balanced, are not interested in the eda pipeline, and not interested in the Grad-CAM figures, you would type `main.py --nb_epochs 20 --batch_size 5 --no-balanced_batches --eda false --int false`.)
+### Supported Model Architectures
+- **DPT-DINOv2-Giant** (with LoRA fine-tuning)
+- **DPT-DINOv2-Base** (with LoRA fine-tuning)
+- **SegFormer-MiT-b2/b5** (with LoRA fine-tuning)
+- **DeepLabV3+ with ResNet50**
+- **U-Net with ResNet50**
 
-[//]: # (If you would want to run on a different model then the default transfer learning model either use --model custom or --model template )
+### Dataset Requirements
+The fine-tuning pipeline expects the following dataset structure:
+```
+data/
+├── images/                    # Original RGB coral reef images (.jpg)
+├── masks_bleached/           # Binary masks for bleached coral regions (.png)
+└── masks_non_bleached/       # Binary masks for non-bleached coral regions (.png)
+```
+
+### Running Fine-tuning
+
+#### Basic Usage
+```bash
+# Navigate to the coralscapesScripts directory
+cd coralscapesScripts
+
+# Run fine-tuning with default settings
+python run_fine_tuning.py --config configs/dpt-dinov2-giant_lora.yaml --dataset-dir ../data --epochs 50 --batch-size 2
+```
+
+#### Advanced Configuration
+```bash
+# Custom configuration with specific parameters
+python fine_tune_pipeline.py \
+    --config configs/dpt-dinov2-giant_lora.yaml \
+    --dataset-dir ../data \
+    --n-folds 5 \
+    --run-name "coral_bleaching_experiment" \
+    --batch-size 2 \
+    --batch-size-eval 1 \
+    --epochs 100 \
+    --lr 0.00005 \
+    --device cuda:0
+```
+
+#### Command Line Arguments
+- `--config`: Path to model configuration file
+- `--dataset-dir`: Path to dataset directory
+- `--n-folds`: Number of cross-validation folds (default: 5)
+- `--run-name`: Unique name for the experiment
+- `--batch-size`: Training batch size (default: 2)
+- `--batch-size-eval`: Evaluation batch size (default: 1)
+- `--epochs`: Number of training epochs (default: 50)
+- `--lr`: Learning rate (default: 0.00005)
+- `--device`: Device to use (cuda, cuda:0, cuda:1, cpu)
+
+### Model Configurations
+
+#### DPT-DINOv2-Giant with LoRA
+```yaml
+# configs/dpt-dinov2-giant_lora.yaml
+model:
+  name: "dpt-dinov2-giant"
+  
+lora:
+  r: 128
+  lora_alpha: 32
+  modules_to_save: ["head"]
+
+training:
+  epochs: 1000
+  optimizer:
+    type: torch.optim.AdamW
+    lr: 0.0005
+    weight_decay: 0.01
+```
+
+#### SegFormer-MiT-b2 with LoRA
+```yaml
+# configs/segformer-mit-b2_lora.yaml
+model:
+  name: "segformer-mit-b2"
+  
+lora:
+  r: 64
+  lora_alpha: 16
+  modules_to_save: ["decode_head"]
+```
+
+### Training Process
+
+The fine-tuning pipeline includes:
+
+1. **Cross-Validation**: 5-fold cross-validation by default
+2. **Data Augmentation**: Random crops, horizontal flips, normalization
+3. **Memory Management**: Automatic memory cleanup and efficient batch processing
+4. **Progress Tracking**: Detailed progress bars and timing estimates
+5. **Model Checkpointing**: Automatic saving of best models
+
+### Evaluation Metrics
+
+The pipeline evaluates models using:
+- **Mean IoU (Intersection over Union)**
+- **Pixel Accuracy**
+- **Per-class IoU**
+- **Precision, Recall, F1-Score**
+
+### Output Structure
+
+After training, the pipeline creates:
+```
+checkpoints/
+├── fold1/
+│   ├── coral_bleaching_experiment_fold1_final.pth
+│   └── benchmark_results.json
+├── fold2/
+│   └── ...
+└── ...
+```
+
+## 📊 Data Visualization
+
+### Coral Reef Dataset Loader
+The project includes a PyTorch DataLoader for coral reef images with segmentation masks:
+
+```python
+# Example usage from dataloader_example_masks.ipynb
+from ReefSegDataset import ReefSegDataset
+from torch.utils.data import DataLoader
+
+# Create dataset
+dataset = ReefSegDataset(
+    images_dir="data/images",
+    masks_stitched_dir="data/masks_stitched",
+    resize=(512, 512)
+)
+
+# Create data loader
+dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
+```
+
+### Color Correction
+The project includes color correction utilities for underwater images:
+- **Gray-World Algorithm**: `Color Correction/Gray-World.py`
+- **Histogram Matching**: `Color Correction/Histogram Matching.py`
+
+## 🔧 Technical Details
+
+### Model Architecture
+The fine-tuning pipeline uses state-of-the-art vision transformers and CNNs:
+- **DPT (Dense Prediction Transformer)**: For dense prediction tasks
+- **DINOv2**: Self-supervised vision transformer backbone
+- **LoRA (Low-Rank Adaptation)**: Efficient fine-tuning technique
+- **SegFormer**: Efficient transformer for semantic segmentation
+
+### Class Mapping
+The pipeline maps 40 original coral classes to 3 main categories:
+- **Class 0**: Background, sand, rubble, non-bleached coral
+- **Class 1**: Bleached coral regions
+- **Class 2**: Additional background classes
+
+### Memory Optimization
+- Automatic memory cleanup between epochs
+- Efficient batch processing with custom collate functions
+- GPU memory monitoring and optimization
+- Fallback to CPU processing when GPU memory is insufficient
+
+## 📈 Performance
+
+The fine-tuning pipeline achieves competitive results on coral bleaching detection:
+- **Mean IoU**: ~68% on validation set
+- **Pixel Accuracy**: ~90% on background classes
+- **Bleached Coral Detection**: ~53% IoU for bleached coral regions
+
+## 🛠️ Troubleshooting
+
+### Common Issues
+
+1. **Out of Memory Error**
+   - Reduce batch size: `--batch-size 1`
+   - Use CPU: `--device cpu`
+   - Enable memory cleanup in configuration
+
+2. **Dataset Not Found**
+   - Ensure correct dataset structure
+   - Check file paths in configuration
+   - Verify image and mask file naming conventions
+
+3. **CUDA Issues**
+   - Check GPU availability: `torch.cuda.is_available()`
+   - Verify CUDA version compatibility
+   - Use CPU fallback: `--device cpu`
+
+## 📚 Additional Resources
+
+- **Coralscapes Dataset**: [Hugging Face](https://huggingface.co/datasets/EPFL-ECEO/coralscapes)
+- **Model Checkpoints**: [Hugging Face Models](https://huggingface.co/EPFL-ECEO)
+- **Online Demo**: [Gradio Demo](https://huggingface.co/spaces/EPFL-ECEO/coralscapes_demo)
 
 ## Authors
 * Juliette Hattingh-Haasbroek (1779192)
