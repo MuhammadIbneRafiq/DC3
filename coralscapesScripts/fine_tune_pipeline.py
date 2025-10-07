@@ -707,17 +707,18 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     benchmark_run.print_trainable_parameters()
     
     # Create logger - disable wandb if project is null
-    wandb_project = None
-    if hasattr(cfg, 'logger') and hasattr(cfg.logger, 'wandb_project') and cfg.logger.wandb_project:
-        wandb_project = cfg.logger.wandb_project
-    
-    logger = Logger(
-        project=wandb_project,
-        benchmark_run=benchmark_run,
-        log_epochs=cfg.logger.log_epochs if hasattr(cfg, 'logger') and hasattr(cfg.logger, 'log_epochs') else 1,
-        config=cfg,
-        checkpoint_dir=f"./checkpoints/fold{fold+1}"
-    )
+    # wandb_project = None
+    # if hasattr(cfg, 'logger') and hasattr(cfg.logger, 'wandb_project') and cfg.logger.wandb_project:
+    #     wandb_project = cfg.logger.wandb_project
+    #
+    # logger = Logger(
+    #     project=wandb_project,
+    #     benchmark_run=benchmark_run,
+    #     log_epochs=cfg.logger.log_epochs if hasattr(cfg, 'logger') and hasattr(cfg.logger, 'log_epochs') else 1,
+    #     config=cfg,
+    #     checkpoint_dir=f"./checkpoints/fold{fold+1}"
+    # )
+    logger = None
     
     # Train the model with enhanced progress tracking
     benchmark_metrics = train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger, cfg)

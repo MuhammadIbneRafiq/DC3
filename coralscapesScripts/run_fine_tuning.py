@@ -9,8 +9,10 @@ import torch
 
 def main():
     parser = argparse.ArgumentParser(description="Run coral bleaching fine-tuning")
-    parser.add_argument("--config", type=str, default="configs/coral_bleaching_dpt_dinov2.yaml", 
-                        help="Path to config file")  # configs/dpt-dinov2-giant_lora.yaml
+    # parser.add_argument("--config", type=str, default="configs/coral_bleaching_dpt_dinov2.yaml",
+    #                     help="Path to config file")
+    parser.add_argument("--config", type=str, default="configs/dpt-dinov2-giant_lora.yaml",
+                        help="Path to config file")
     parser.add_argument("--dataset-dir", type=str, default="data",
                         help="Path to dataset directory")
     parser.add_argument("--n-folds", type=int, default=5, 
