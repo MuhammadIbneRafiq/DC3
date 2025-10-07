@@ -1,13 +1,13 @@
-# Capstone Data Challenge Group 3
-## JBG060 2025-2026 Q1
+# Group 3
+## JBG060 Capstone Data Challenge  2025-2026 Q1
 This repository contains the code for the course JBG060 Capstone Data Challenge .
 Please read this document carefully as it has been filled out with important information.
 
 ## Code structure
 
 ## Environment setup instructions
-### Environment setup instructions for non-gpu-equipped devices
-### Environment setup instructions for gpu-equipped devices
+### Environment setup instructions for non-GPU-equipped devices
+### Environment setup instructions for GPU-equipped devices
 
 ## Argparse
 Argparse functionality is included 
