@@ -33,7 +33,7 @@ from coralscapesScripts.segmentation.model import Benchmark_Run
 from coralscapesScripts.segmentation.benchmarking import launch_benchmark
 from coralscapesScripts.segmentation.model import preprocess_batch, get_batch_predictions, get_windows
 from coralscapesScripts.segmentation.eval import Evaluator
-from coralscapesScripts.logger import Logger, save_benchmark_run, save_model_checkpoint
+from coralscapesScripts.logger import save_benchmark_run, save_model_checkpoint
 from coralscapesScripts.io import setup_config, get_parser, update_config_with_args
 
 
@@ -499,7 +499,7 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
     return running_loss / valid_batches if valid_batches > 0 else float('inf')
 
 
-def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger, cfg):
+def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
     """Enhanced training loop with comprehensive progress tracking"""
     best_val_mean_iou, best_val_mean_accuracy, best_vloss, best_epoch = 0., 0., float('inf'), -1
     total_epochs = benchmark_run.training_hyperparameters["epochs"]
@@ -564,45 +564,45 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger
         print('-'*80)
         cleanup_memory()  # Clean up memory after evaluation
 
-        if logger:  # Log to wandb if available
-            logger.log({
-                "train/loss": train_loss,
-                "validation/loss": val_loss,
-                "train/time_taken": epoch_time,
-                "train/total_time_elapsed": total_time_elapsed,
-                "train/estimated_remaining_time": estimated_remaining_time,
-                **{f"train/{metric_name}": metric for metric_name, metric in train_metric_results.items()},
-                **{f"validation/{metric_name}": metric for metric_name, metric in metric_results.items()}
-            }, step=epoch)
-            
-            # Log images at specified intervals
-            if epoch % logger.log_epochs == 0 or epoch == total_epochs - 1:
-                if logger.logger:
-                    logger.log_image_predictions(*evaluator.evaluate_image(train_loader, benchmark_run.model, split="train", epoch=epoch), epoch, split="train")
-                    logger.log_image_predictions(*evaluator.evaluate_image(val_loader, benchmark_run.model, split="validation", epoch=epoch), epoch, split="validation")
+        # if logger:  # Log to wandb if available
+        #     logger.log({
+        #         "train/loss": train_loss,
+        #         "validation/loss": val_loss,
+        #         "train/time_taken": epoch_time,
+        #         "train/total_time_elapsed": total_time_elapsed,
+        #         "train/estimated_remaining_time": estimated_remaining_time,
+        #         **{f"train/{metric_name}": metric for metric_name, metric in train_metric_results.items()},
+        #         **{f"validation/{metric_name}": metric for metric_name, metric in metric_results.items()}
+        #     }, step=epoch)
+        #
+        #     # Log images at specified intervals
+        #     if epoch % logger.log_epochs == 0 or epoch == total_epochs - 1:
+        #         if logger.logger:
+        #             logger.log_image_predictions(*evaluator.evaluate_image(train_loader, benchmark_run.model, split="train", epoch=epoch), epoch, split="train")
+        #             logger.log_image_predictions(*evaluator.evaluate_image(val_loader, benchmark_run.model, split="validation", epoch=epoch), epoch, split="validation")
             
             # Track best performance and save model
-            if best_val_mean_iou < metric_results["mean_iou"]:
-                best_vloss = val_loss
-                best_val_mean_iou = metric_results["mean_iou"]
-                best_val_mean_accuracy = metric_results["accuracy"]
-                best_epoch = epoch
-                
-                print(f"🏆 New best model! IoU: {best_val_mean_iou:.4f} (Epoch {epoch+1})")
-                save_model_checkpoint(benchmark_run, epoch, train_loss, val_loss, 
-                                    best_val_mean_iou, best_val_mean_accuracy, logger)
-                
-            # Periodic checkpoints
-            if (epoch % logger.log_checkpoint == 0) and epoch > 0:
-                save_model_checkpoint(benchmark_run, epoch, train_loss, val_loss, 
-                                    metric_results["mean_iou"], metric_results["accuracy"], 
-                                    logger, final_checkpoint=False)
-            
-            # Final checkpoint
-            if epoch == total_epochs - 1:
-                save_model_checkpoint(benchmark_run, epoch, train_loss, val_loss, 
-                                    metric_results["mean_iou"], metric_results["accuracy"], 
-                                    logger, final_checkpoint=True)
+            # if best_val_mean_iou < metric_results["mean_iou"]:
+            #     best_vloss = val_loss
+            #     best_val_mean_iou = metric_results["mean_iou"]
+            #     best_val_mean_accuracy = metric_results["accuracy"]
+            #     best_epoch = epoch
+            #
+            #     print(f"🏆 New best model! IoU: {best_val_mean_iou:.4f} (Epoch {epoch+1})")
+            #     save_model_checkpoint(benchmark_run, epoch, train_loss, val_loss,
+            #                         best_val_mean_iou, best_val_mean_accuracy, logger)
+            #
+            # # Periodic checkpoints
+            # if (epoch % logger.log_checkpoint == 0) and epoch > 0:
+            #     save_model_checkpoint(benchmark_run, epoch, train_loss, val_loss,
+            #                         metric_results["mean_iou"], metric_results["accuracy"],
+            #                         logger, final_checkpoint=False)
+            #
+            # # Final checkpoint
+            # if epoch == total_epochs - 1:
+            #     save_model_checkpoint(benchmark_run, epoch, train_loss, val_loss,
+            #                         metric_results["mean_iou"], metric_results["accuracy"],
+            #                         logger, final_checkpoint=True)
         
         cleanup_memory()
     
@@ -721,7 +721,7 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     logger = None
     
     # Train the model with enhanced progress tracking
-    benchmark_metrics = train_with_progress_tracking(train_loader, val_loader, benchmark_run, logger, cfg)
+    benchmark_metrics = train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg)
     
     # Save the model
     save_path = f"./checkpoints/fold{fold+1}/{run_name}_final.pth"
