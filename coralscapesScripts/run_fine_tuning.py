@@ -15,7 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run coral bleaching fine-tuning")
     # parser.add_argument("--config", type=str, default="configs/coral_bleaching_dpt_dinov2.yaml",
     #                     help="Path to config file")
-    parser.add_argument("--config", type=str, default="configs/dpt-dinov2-giant_lora.yaml",
+    parser.add_argument("--config", type=str, default="configs/segformer-mit-b2_lora_dc3.yaml",
                         help="Path to config file")
     parser.add_argument("--dataset-dir", type=str, default="data",
                         help="Path to dataset directory")
