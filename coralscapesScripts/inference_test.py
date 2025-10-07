@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-"""
-Inference script for testing the trained coral bleaching detection model
-"""
-
 import os
 import sys
 import torch
@@ -12,16 +7,12 @@ from torch.utils.data import DataLoader
 from PIL import Image
 import glob
 import argparse
-import yaml
-import copy
-from datetime import datetime
-import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, jaccard_score  # pyright: ignore[reportMissingImports]
 import cv2
 
 # Add parent directory to path to import coralscapesScripts modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coralscapesScripts.datasets.preprocess import get_preprocessor
 from coralscapesScripts.segmentation.model import Benchmark_Run
 from coralscapesScripts.segmentation.model import preprocess_batch, get_batch_predictions
 from coralscapesScripts.io import setup_config
@@ -303,10 +294,7 @@ def run_inference(model, dataloader, device, output_dir, dataset):
     return all_predictions, all_ground_truths, all_image_names
 
 
-def calculate_metrics(predictions, ground_truths):
-    """Calculate evaluation metrics"""
-    from sklearn.metrics import accuracy_score, jaccard_score
-    
+def calculate_metrics(predictions, ground_truths):    
     # Flatten all predictions and ground truths
     all_preds = np.concatenate([pred.flatten() for pred in predictions])
     all_gts = np.concatenate([gt.flatten() for gt in ground_truths])

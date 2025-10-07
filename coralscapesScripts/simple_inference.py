@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-"""
-Simple inference script for testing the trained coral bleaching detection model
-"""
-
 import os
 import sys
 import torch
@@ -13,14 +8,12 @@ from PIL import Image
 import glob
 import argparse
 import cv2
-from sklearn.metrics import accuracy_score, jaccard_score
+from sklearn.metrics import accuracy_score, jaccard_score  # pyright: ignore[reportMissingImports]
 
 # Add parent directory to path to import coralscapesScripts modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from coralscapesScripts.datasets.preprocess import get_preprocessor
 from coralscapesScripts.segmentation.model import Benchmark_Run
-
 
 class SimpleCoralDataset:
     """Simple dataset for inference"""
