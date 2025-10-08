@@ -37,7 +37,7 @@ from coralscapesScripts.segmentation.model import Benchmark_Run
 from coralscapesScripts.segmentation.benchmarking import launch_benchmark
 from coralscapesScripts.segmentation.model import preprocess_batch, get_batch_predictions, get_windows
 from coralscapesScripts.segmentation.eval import Evaluator
-from coralscapesScripts.logger import save_benchmark_run, save_model_checkpoint
+from coralscapesScripts.logger import save_benchmark_run
 from coralscapesScripts.io import setup_config, get_parser, update_config_with_args
 
 
@@ -254,6 +254,32 @@ def cleanup_memory():
         torch.cuda.synchronize()
         # Force garbage collection of CUDA tensors
         torch.cuda.ipc_collect()
+
+
+def save_checkpoint_local(benchmark_run, epoch, train_loss, val_loss, metrics, tag=None, directory=None):
+    """Save a checkpoint locally without any external logger dependency."""
+    if directory is None:
+        directory = os.path.join("./checkpoints", benchmark_run.run_name)
+    os.makedirs(directory, exist_ok=True)
+
+    filename = f"model_epoch{epoch}.pth" if tag is None else f"model_{tag}.pth"
+    path = os.path.join(directory, filename)
+
+    checkpoint = {
+        "model_state_dict": benchmark_run.model.state_dict(),
+        "optimizer_state_dict": benchmark_run.optimizer.state_dict(),
+        "epoch": int(epoch),
+        "train_loss": float(train_loss) if train_loss is not None else None,
+        "val_loss": float(val_loss) if val_loss is not None else None,
+        "metrics": metrics if metrics is not None else {},
+        "timestamp": datetime.now().strftime("%Y%m%d%H%M%S"),
+        "model_name": benchmark_run.model_name,
+        "N_classes": int(benchmark_run.N_classes),
+    }
+
+    torch.save(checkpoint, path)
+    print(f"\ud83d\udcbe Saved checkpoint: {path}")
+    return path
 
 
 def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000):
@@ -574,6 +600,24 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
         print('-'*80)
         cleanup_memory()  # Clean up memory after evaluation
 
+        # Save best checkpoint locally based on validation IoU
+        current_iou = metric_results.get("mean_iou", 0.0)
+        current_acc = metric_results.get("accuracy", 0.0)
+        if best_val_mean_iou < current_iou:
+            best_vloss = val_loss
+            best_val_mean_iou = current_iou
+            best_val_mean_accuracy = current_acc
+            best_epoch = epoch
+            print(f"\ud83c\udfc6 New best model! IoU: {best_val_mean_iou:.4f} (Epoch {epoch+1})")
+            save_checkpoint_local(
+                benchmark_run,
+                epoch=epoch,
+                train_loss=train_loss,
+                val_loss=val_loss,
+                metrics={"mean_iou": current_iou, "accuracy": current_acc},
+                tag="best",
+            )
+
         # if logger:  # Log to wandb if available
         #     logger.log({
         #         "train/loss": train_loss,
@@ -630,6 +674,24 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
         "total_training_time": total_training_time
     }
     
+    # Save final checkpoint locally at end of training
+    try:
+        final_epoch = best_epoch if best_epoch >= 0 else total_epochs - 1
+        save_checkpoint_local(
+            benchmark_run,
+            epoch=final_epoch,
+            train_loss=None,
+            val_loss=None,
+            metrics={
+                "validation_mean_iou": best_val_mean_iou,
+                "validation_mean_accuracy": best_val_mean_accuracy,
+                "validation_loss": best_vloss,
+            },
+            tag="final",
+        )
+    except Exception as e:
+        print(f"\u26a0\ufe0f Failed to save final checkpoint: {e}")
+
     return results_dict
 
 
@@ -733,8 +795,14 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     # Train the model with enhanced progress tracking
     benchmark_metrics = train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg)
     
-    # Save the model
+    # Save the model (weights-only) and benchmark metadata
     save_path = f"./checkpoints/fold{fold+1}/{run_name}_final.pth"
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    try:
+        torch.save(benchmark_run.model.state_dict(), save_path)
+        print(f"\ud83d\udcbe Saved final model weights to {save_path}")
+    except Exception as e:
+        print(f"\u26a0\ufe0f Failed to save final weights to {save_path}: {e}")
     save_benchmark_run(benchmark_run, benchmark_metrics)
     
     # Final memory cleanup for this fold

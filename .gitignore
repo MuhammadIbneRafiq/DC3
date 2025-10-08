@@ -4,4 +4,6 @@ data/*
 inference_results/*
 # coralscapesScripts/coralscapesScripts/*
 coralscapes/
+coralscapesScripts/data/
 test_data/
+color_normalization/clusters/
