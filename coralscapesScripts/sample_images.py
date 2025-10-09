@@ -35,3 +35,6 @@ def plot_images(ncols: int = 8, nrows: int = 3, figsize: tuple = (10, 10), seed:
 
 
 plot_images(ncols=8, nrows=3, figsize=(14, 5))
+# Found 256 images for cluster_0
+# Found 291 images for cluster_1
+# Found 111 images for cluster_2
