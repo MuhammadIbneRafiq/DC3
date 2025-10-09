@@ -250,6 +250,13 @@ def cleanup_memory():
         torch.cuda.synchronize()
         # Force garbage collection of CUDA tensors
         torch.cuda.ipc_collect()
+        
+    # Print current memory usage
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated() / 1024 / 1024
+        reserved = torch.cuda.memory_reserved() / 1024 / 1024
+        max_allocated = torch.cuda.max_memory_allocated() / 1024 / 1024
+        print(f"GPU Memory: {allocated:.1f}MB allocated, {reserved:.1f}MB reserved, {max_allocated:.1f}MB peak")
 
 
 def save_checkpoint_local(benchmark_run, epoch, train_loss, val_loss, metrics, tag=None, directory=None):
@@ -281,6 +288,20 @@ def save_checkpoint_local(benchmark_run, epoch, train_loss, val_loss, metrics, t
 def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000):
     initial_memory = get_memory_usage()
 
+    # Create a memory-efficient dataloader with smaller batch size for evaluation
+    smaller_batch_size = 1
+    efficient_dataloader = DataLoader(
+        dataloader.dataset,
+        batch_size=smaller_batch_size,
+        shuffle=False,
+        num_workers=dataloader.num_workers,
+        collate_fn=dataloader.collate_fn,
+        drop_last=dataloader.drop_last,
+        pin_memory=dataloader.pin_memory if hasattr(dataloader, 'pin_memory') else False
+    )
+    print(f"⚠️ Using smaller batch size for metrics evaluation: {smaller_batch_size} (was {dataloader.batch_size})")
+    dataloader = efficient_dataloader
+
     try:
         # Wrap the model evaluation in a custom evaluation loop for DPT
         if hasattr(model, 'config') and 'dpt' in str(model.config).lower():
@@ -293,6 +314,9 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
                 for data in dataloader:
                     if data is None:
                         continue
+                    
+                    # Clean up memory before processing each batch
+                    cleanup_memory()
                     
                     preprocessed_batch = preprocess_batch(data, evaluator.preprocessor)
                     if isinstance(preprocessed_batch, dict) and "pixel_values" in preprocessed_batch:
@@ -307,6 +331,11 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
                         # Update metrics
                         for metric in evaluator.metric_dict.values():
                             metric.update(outputs, labels)
+                        
+                        # Force cleanup after each batch to prevent memory accumulation
+                        del outputs, inputs, labels
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
 
                 for metric_name, metric in evaluator.metric_dict.items():  # Compute final metrics
                     metric_results[metric_name] = metric.compute().cpu().numpy()
@@ -472,6 +501,22 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
     valid_batches = 0  # Counter for valid batches
     batch_times = []
     
+    # Use smaller batch size for validation to reduce memory usage
+    smaller_batch_size = max(1, val_loader.batch_size // 2)
+    if val_loader.batch_size > smaller_batch_size:
+        print(f"⚠️ Using smaller batch size for validation: {smaller_batch_size} (was {val_loader.batch_size})")
+        val_loader_small = DataLoader(
+            val_loader.dataset,
+            batch_size=smaller_batch_size,
+            shuffle=False,
+            num_workers=val_loader.num_workers,
+            collate_fn=val_loader.collate_fn,
+            drop_last=val_loader.drop_last,
+            pin_memory=val_loader.pin_memory if hasattr(val_loader, 'pin_memory') else False
+        )
+        val_loader = val_loader_small
+        total_batches = len(val_loader)
+    
     with torch.no_grad():
         # Create progress bar for validation
         val_pbar = tqdm(enumerate(val_loader), total=total_batches,
@@ -524,6 +569,10 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
                 'Imgs': f'{images_processed}/{total_images}',
                 'Time/batch': f'{avg_batch_time:.2f}s'
             })
+            
+            # Clean up memory every few batches
+            if (batch_idx + 1) % 5 == 0:
+                cleanup_memory()
         
         val_pbar.close()
     
