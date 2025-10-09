@@ -82,24 +82,24 @@ def main():
     
     # Create a wrapper script that loads all memory optimizations
     wrapper_script = "run_with_memory_optimizations.py"
-    with open(wrapper_script, "w") as f:
+    with open(wrapper_script, "w", encoding='utf-8') as f:
         f.write(f"""
 # Wrapper script with memory optimizations
 import sys
 
 # Load memory patches
-with open('{patch_file}', 'r') as patch_file:
+with open('{patch_file}', 'r', encoding='utf-8') as patch_file:
     exec(patch_file.read())
 
 # Load additional memory fixes
-with open('extra_memory_fixes.py', 'r') as fixes_file:
+with open('extra_memory_fixes.py', 'r', encoding='utf-8') as fixes_file:
     exec(fixes_file.read())
 
 # Set up arguments
 sys.argv = ['fine_tune_pipeline.py'] + {sys.argv[1:]}
 
 # Load and run the main pipeline
-with open('fine_tune_pipeline.py', 'r') as main_file:
+with open('fine_tune_pipeline.py', 'r', encoding='utf-8') as main_file:
     exec(main_file.read())
         """)
     

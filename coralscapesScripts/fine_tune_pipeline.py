@@ -320,7 +320,7 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
                 for data in dataloader:
                     batch_count += 1
                     if max_batches and batch_count > max_batches:
-                        print(f"⚠️ Limiting evaluation to {max_batches} batches to save memory")
+                        print(f"WARNING: Limiting evaluation to {max_batches} batches to save memory")
                         break
                     if data is None:    
                         continue
@@ -360,7 +360,7 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
         current_memory = get_memory_usage()  # Check memory usage after evaluation
         memory_increase = current_memory - initial_memory
         
-        print(f"✅ Evaluation completed for {split} split (Memory: {current_memory:.1f} MB, +{memory_increase:.1f} MB)")
+        print(f"Evaluation completed for {split} split (Memory: {current_memory:.1f} MB, +{memory_increase:.1f} MB)")
         
         # Always clean up memory after evaluation
         cleanup_memory(verbose=True)
@@ -369,25 +369,25 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
         
     except RuntimeError as e:
         if "out of memory" in str(e).lower():
-            print(f"❌ Out of memory during {split} evaluation: {e}\n🧹 Attempting memory cleanup and retry...")
+            print(f"ERROR: Out of memory during {split} evaluation: {e}\nAttempting memory cleanup and retry...")
             cleanup_memory()
 
             try:  # Try again with smaller batch processing
-                print("🔄 Retrying evaluation with memory cleanup...")
+                print("Retrying evaluation with memory cleanup...")
                 results = evaluator.evaluate_model(dataloader, model, split=split)
-                print(f"✅ Retry successful for {split} split")
+                print(f"Retry successful for {split} split")
                 return results
             except RuntimeError as retry_e:
-                print(f"❌ Retry failed for {split} evaluation: {retry_e}\n"
-                      f"🔄 Trying with memory-efficient dataloader (batch_size=1)...")
+                print(f"ERROR: Retry failed for {split} evaluation: {retry_e}\n"
+                      f"Trying with memory-efficient dataloader (batch_size=1)...")
 
                 try:  # Try with memory-efficient dataloader
                     efficient_dataloader = create_memory_efficient_dataloader(dataloader, max_batch_size=1)
                     results = evaluator.evaluate_model(efficient_dataloader, model, split=split)
-                    print(f"✅ Memory-efficient evaluation successful for {split} split")
+                    print(f"Memory-efficient evaluation successful for {split} split")
                     return results
                 except RuntimeError as final_e:
-                    print(f"❌ Final retry failed for {split} evaluation: {final_e}")
+                    print(f"ERROR: Final retry failed for {split} evaluation: {final_e}")
                     return {"accuracy": 0.0, "mean_iou": 0.0}  # Return dummy results to continue training
         else:
             raise e
@@ -510,7 +510,7 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
     # Use smaller batch size for validation to reduce memory usage
     smaller_batch_size = max(1, val_loader.batch_size // 2)
     if val_loader.batch_size > smaller_batch_size:
-        print(f"⚠️ Using smaller batch size for validation: {smaller_batch_size} (was {val_loader.batch_size})")
+        print(f"WARNING Using smaller batch size for validation: {smaller_batch_size} (was {val_loader.batch_size})")
         val_loader_small = DataLoader(
             val_loader.dataset,
             batch_size=smaller_batch_size,
@@ -599,16 +599,16 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
         evaluator = Evaluator(N_classes=benchmark_run.N_classes, device=benchmark_run.device, 
                              eval_params=benchmark_run.eval)
     
-    print(f"\n🚀 Starting training for {total_epochs} epochs\n"
-          f"📊 Training batches: {len(train_loader)} | Validation batches: {len(val_loader)}\n"
-          f"🖼️ Training images: {len(train_loader) * train_loader.batch_size} | Validation images: {len(val_loader) * val_loader.batch_size}\n"
-          f"⏱️ Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'-'*80}")
+    print(f"\nSTARTING Starting training for {total_epochs} epochs\n"
+          f"INFO Training batches: {len(train_loader)} | Validation batches: {len(val_loader)}\n"
+          f"IMAGES Training images: {len(train_loader) * train_loader.batch_size} | Validation images: {len(val_loader) * val_loader.batch_size}\n"
+          f"TIME Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'-'*80}")
 
     # Main training loop with progress tracking
     for epoch in range(total_epochs):
         epoch_start_time = time.time()
         
-        print(f"📈 EPOCH {epoch+1}/{total_epochs}\n{'-'*80}")
+        print(f"EPOCH EPOCH {epoch+1}/{total_epochs}\n{'-'*80}")
 
         # Training phase
         train_loss = train_epoch_with_progress(benchmark_run, train_loader, epoch, total_epochs, epoch_start_time)
@@ -627,9 +627,9 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
         estimated_remaining_time = avg_epoch_time * (total_epochs - epoch - 1)
         
         # Print epoch summary
-        print(f"✅ Epoch {epoch+1} completed in {epoch_time:.1f}s\n📉 Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}\n"
-              f"⏰ Time elapsed: {timedelta(seconds=int(total_time_elapsed))} | "
-              f"ETA: {timedelta(seconds=int(estimated_remaining_time))}\n🔍 Calculating detailed metrics...")
+        print(f"COMPLETED Epoch {epoch+1} completed in {epoch_time:.1f}s\nLOSS Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}\n"
+              f"ELAPSED Time elapsed: {timedelta(seconds=int(total_time_elapsed))} | "
+              f"ETA: {timedelta(seconds=int(estimated_remaining_time))}\nCALCULATING Calculating detailed metrics...")
 
         cleanup_memory()  # Clean up memory before evaluation
         
@@ -643,7 +643,7 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
             metric_results = safe_evaluate_model(evaluator, val_loader, benchmark_run.model, split="validation", max_batches=10)
         
         # Print detailed metrics table
-        print(f"\n📊 DETAILED METRICS:\n{'-'*80}\n{'Metric':<15} | {'Train':<15} | {'Validation':<15}\n{'-'*80}")
+        print(f"\nINFO DETAILED METRICS:\n{'-'*80}\n{'Metric':<15} | {'Train':<15} | {'Validation':<15}\n{'-'*80}")
 
         # Print common metrics in a table format
         for metric_name in sorted(metric_results.keys()):
@@ -698,7 +698,7 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
             #     best_val_mean_accuracy = metric_results["accuracy"]
             #     best_epoch = epoch
             #
-            #     print(f"🏆 New best model! IoU: {best_val_mean_iou:.4f} (Epoch {epoch+1})")
+            #     print(f"BEST New best model! IoU: {best_val_mean_iou:.4f} (Epoch {epoch+1})")
             #     save_model_checkpoint(benchmark_run, epoch, train_loss, val_loss,
             #                         best_val_mean_iou, best_val_mean_accuracy, logger)
             #
@@ -718,9 +718,9 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
     
     # Training completion summary
     total_training_time = time.time() - fold_start_time
-    print(f"\n🎉 Training completed!\n⏱️ Total training time: {timedelta(seconds=int(total_training_time))}\n"
-          f"🏆 Best validation IoU: {best_val_mean_iou:.4f} (Epoch {best_epoch+1})\n"
-          f"📈 Best validation accuracy: {best_val_mean_accuracy:.4f}\n{'-'*80}")
+    print(f"\nSUCCESS Training completed!\nTIME Total training time: {timedelta(seconds=int(total_training_time))}\n"
+          f"BEST Best validation IoU: {best_val_mean_iou:.4f} (Epoch {best_epoch+1})\n"
+          f"EPOCH Best validation accuracy: {best_val_mean_accuracy:.4f}\n{'-'*80}")
 
     results_dict = {
         "validation_loss": best_vloss,
@@ -754,7 +754,7 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
 def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     """Train a single fold"""
     initial_memory = get_memory_usage()  # Monitor initial memory
-    print(f"{'-' * 80}\nTraining Fold {fold + 1}\n{'-' * 80}\n🧠 Initial memory usage: {initial_memory:.1f} MB")
+    print(f"{'-' * 80}\nTraining Fold {fold + 1}\n{'-' * 80}\nMEMORY Initial memory usage: {initial_memory:.1f} MB")
 
     transforms = create_transforms(cfg)  # Create transforms
     
@@ -868,10 +868,10 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     # Final memory cleanup for this fold
     final_memory = get_memory_usage()
     memory_increase = final_memory - initial_memory
-    print(f"🧠 Final memory usage: {final_memory:.1f} MB (+{memory_increase:.1f} MB)")
+    print(f"MEMORY Final memory usage: {final_memory:.1f} MB (+{memory_increase:.1f} MB)")
     cleanup_memory()
     after_cleanup = get_memory_usage()
-    print(f"🧹 Memory cleanup completed (Memory: {after_cleanup:.1f} MB)")
+    print(f"CLEANUP Memory cleanup completed (Memory: {after_cleanup:.1f} MB)")
     
     return benchmark_metrics
 
@@ -954,15 +954,15 @@ def main():
     total_folds = args.n_folds
     cv_start_time = time.time()
     
-    print(f"\n🔄 Starting {total_folds}-fold cross-validation \n📁 Total images: {len(all_images)}\n"
-          f"⏱️ Cross-validation started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'-'*80}")
+    print(f"\nPROGRESS Starting {total_folds}-fold cross-validation \nFILES Total images: {len(all_images)}\n"
+          f"TIME Cross-validation started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'-'*80}")
     
     for fold, (train_idx, val_idx) in enumerate(kfold.split(all_images)):
         train_images = [all_images[i] for i in train_idx]
         val_images = [all_images[i] for i in val_idx]
         
-        print(f"🔄 Fold {fold+1}/{total_folds} \n"
-              f"📊 Train images: {len(train_images)} | Validation images: {len(val_images)}")
+        print(f"PROGRESS Fold {fold+1}/{total_folds} \n"
+              f"INFO Train images: {len(train_images)} | Validation images: {len(val_images)}")
         
         fold_start_time = time.time()
         metrics = train_fold(fold, train_images, val_images, args.dataset_dir, cfg, device)
@@ -976,17 +976,17 @@ def main():
         remaining_folds = total_folds - fold - 1
         estimated_remaining_cv_time = avg_fold_time * remaining_folds
         
-        print(f"✅ Fold {fold+1} completed in {timedelta(seconds=int(fold_time))}\n"
-              f"⏰ CV Time elapsed: {timedelta(seconds=int(elapsed_cv_time))} | "
+        print(f"COMPLETED Fold {fold+1} completed in {timedelta(seconds=int(fold_time))}\n"
+              f"ELAPSED CV Time elapsed: {timedelta(seconds=int(elapsed_cv_time))} | "
               f"CV ETA: {timedelta(seconds=int(estimated_remaining_cv_time))}")
         
         if fold < total_folds - 1:
-            print(f"🔄 Starting next fold in 2 seconds...")
+            print(f"PROGRESS Starting next fold in 2 seconds...")
             cleanup_memory()  # Clean up memory between folds
             time.sleep(2)
 
     total_cv_time = time.time() - cv_start_time  # Calculate average metrics across folds
-    print(f"\n{'-' * 80}\n🎉 CROSS-VALIDATION RESULTS\n{'-' * 80}\n")
+    print(f"\n{'-' * 80}\nSUCCESS CROSS-VALIDATION RESULTS\n{'-' * 80}\n")
 
     avg_metrics, std_metrics = {}, {}  # Collect all metrics
     for metric in fold_metrics[0].keys():
