@@ -578,20 +578,24 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
 
         cleanup_memory()  # Clean up memory before evaluation
         
-        # Use safe evaluation
-        train_metric_results = safe_evaluate_model(evaluator, train_loader, benchmark_run.model, split="train")
-        metric_results = safe_evaluate_model(evaluator, val_loader, benchmark_run.model, split="validation")
+        # Use safe evaluation; compute metrics less frequently to speed up training
+        eval_every = 5
+        compute_metrics_now = (epoch % eval_every == 0) or (epoch == total_epochs - 1)
+        train_metric_results = {}
+        metric_results = {}
+        if compute_metrics_now:
+            metric_results = safe_evaluate_model(evaluator, val_loader, benchmark_run.model, split="validation")
         
         # Print detailed metrics table
         print(f"\n📊 DETAILED METRICS:\n{'-'*80}\n{'Metric':<15} | {'Train':<15} | {'Validation':<15}\n{'-'*80}")
 
         # Print common metrics in a table format
         for metric_name in sorted(metric_results.keys()):
-            if metric_name in train_metric_results:
-                train_value = train_metric_results[metric_name]
-                val_value = metric_results[metric_name]
-                if isinstance(train_value, (int, float)):
-                    print(f"{metric_name:<15} | {train_value:<15.4f} | {val_value:<15.4f}")
+            train_value = train_metric_results.get(metric_name, float('nan'))
+            val_value = metric_results[metric_name]
+            train_str = f"{train_value:.4f}" if isinstance(train_value, (int, float)) else "-"
+            if isinstance(val_value, (int, float)):
+                print(f"{metric_name:<15} | {train_str:<15} | {val_value:<15.4f}")
         
         print('-'*80)
         cleanup_memory()  # Clean up memory after evaluation
@@ -715,21 +719,24 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     )
     
     # Create data loaders
+    pin_mem = device.type == "cuda"
     train_loader = DataLoader(
         train_dataset, 
         batch_size=cfg.data.batch_size, 
         shuffle=True, 
         num_workers=2, 
-        drop_last=True
+        drop_last=True,
+        pin_memory=pin_mem
     )
     
     val_loader = DataLoader(
         val_dataset, 
         batch_size=cfg.data.batch_size_eval, 
         shuffle=False, 
-        num_workers=0,  # Set to 0 to avoid multiprocessing issues
+        num_workers=2,
         collate_fn=custom_collate,  # Use custom collate function
-        drop_last=True
+        drop_last=True,
+        pin_memory=pin_mem
     )
     
     # Calculate class weights - create a simple wrapper for calculate_weights
