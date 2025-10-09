@@ -1,6 +1,7 @@
 import numpy as np 
 
 import torch 
+import torch.nn.functional as F
 
 from transformers import SegformerImageProcessor, Mask2FormerImageProcessor, DPTImageProcessor, AutoImageProcessor
 
@@ -25,7 +26,14 @@ def get_windows_inference(inputs, window_size, stride):
     for y in range(0, height, stride):
         input_windows_row = []
         for x in range(0, width, stride):
-            input_window = inputs[:, :, y:y+window_size, x:x+window_size]
+            # Slice window and pad on right/bottom edges so all windows are window_size x window_size
+            y_end = min(y + window_size, height)
+            x_end = min(x + window_size, width)
+            input_window = inputs[:, :, y:y_end, x:x_end]
+            pad_bottom = window_size - (y_end - y)
+            pad_right = window_size - (x_end - x)
+            if pad_bottom > 0 or pad_right > 0:
+                input_window = F.pad(input_window, (0, pad_right, 0, pad_bottom), mode="constant", value=0)
             input_windows_row.append(input_window)
         input_windows.append(input_windows_row)
 
@@ -63,8 +71,20 @@ def get_windows(batch, window_size, stride, window_size_label = None, stride_lab
         input_windows_row = []
         label_windows_row = []
         for x in range(0, width, stride):
-            input_window = inputs[:, :, y:y+window_size, x:x+window_size]
-            label_window = labels[:, y:y+window_size, x:x+window_size]
+            # Compute bounds for current window
+            y_end = min(y + window_size, height)
+            x_end = min(x + window_size, width)
+
+            # Slice
+            input_window = inputs[:, :, y:y_end, x:x_end]
+            label_window = labels[:, y:y_end, x:x_end]
+
+            # Pad to fixed size on borders
+            pad_bottom = window_size - (y_end - y)
+            pad_right = window_size - (x_end - x)
+            if pad_bottom > 0 or pad_right > 0:
+                input_window = F.pad(input_window, (0, pad_right, 0, pad_bottom), mode="constant", value=0)
+                label_window = F.pad(label_window, (0, pad_right, 0, pad_bottom), mode="constant", value=0)
             input_windows_row.append(input_window)
             label_windows_row.append(label_window)
         input_windows.append(input_windows_row)
@@ -77,7 +97,13 @@ def get_windows(batch, window_size, stride, window_size_label = None, stride_lab
         for y in range(0, height, stride_label):
             label_windows_row = []
             for x in range(0, width, stride_label):
-                label_window = labels[:, y:y+window_size_label, x:x+window_size_label]
+                y_end = min(y + window_size_label, height)
+                x_end = min(x + window_size_label, width)
+                label_window = labels[:, y:y_end, x:x_end]
+                pad_bottom = window_size_label - (y_end - y)
+                pad_right = window_size_label - (x_end - x)
+                if pad_bottom > 0 or pad_right > 0:
+                    label_window = F.pad(label_window, (0, pad_right, 0, pad_bottom), mode="constant", value=0)
                 label_windows_row.append(label_window)
             label_windows.append(label_windows_row)
 
