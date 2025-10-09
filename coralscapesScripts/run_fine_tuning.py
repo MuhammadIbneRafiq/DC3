@@ -16,7 +16,21 @@ from datetime import datetime
 import torch
 
 # Set CUDA memory allocation configuration before importing torch
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True,max_split_size_mb:128'
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True,max_split_size_mb:64,garbage_collection_threshold:0.6'
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+os.environ['PYTORCH_NO_CUDA_MEMORY_CACHING'] = '1'  # Disable CUDA caching
+
+
+def setup_memory_optimizations():
+    """Setup memory optimizations for the training run"""
+    # We've already created memory_patch.py with advanced optimizations
+    patch_file = "memory_patch.py"
+    
+    # Make sure we're using the latest memory optimization settings
+    if not os.path.exists(patch_file):
+        print(f"Warning: {patch_file} not found. Memory optimizations will be limited.")
+        
+    return patch_file
 
 
 def main():
@@ -62,14 +76,21 @@ def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_name = f"coral_bleaching_{timestamp}"
     
-    # Build the command
+    # Setup memory optimizations
+    patch_file = setup_memory_optimizations()
+    
+    # Build the command with memory optimizations
     cmd = [
-        "python", "fine_tune_pipeline.py",
+        "python", "-c",
+        f"import sys; exec(open('{patch_file}').read()); " +
+        f"sys.argv = ['fine_tune_pipeline.py'] + sys.argv[1:]; " +
+        f"exec(open('fine_tune_pipeline.py').read())",
         f"--config={args.config}",
         f"--dataset-dir={args.dataset_dir}",
         f"--n-folds={args.n_folds}",
         f"--run-name={run_name}",
         f"--batch-size={args.batch_size}",
+        f"--batch-size-eval=1",  # Force batch size 1 for evaluation
         f"--epochs={args.epochs}",
         f"--device={device}"
     ]

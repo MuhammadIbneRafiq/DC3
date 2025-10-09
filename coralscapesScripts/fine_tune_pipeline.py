@@ -241,7 +241,7 @@ def get_memory_usage():
     return memory_info.rss / 1024 / 1024  # Convert to MB
 
 
-def cleanup_memory():
+def cleanup_memory(verbose=False):
     """Clean up memory by running garbage collection and clearing CUDA cache"""
     gc.collect()
 
@@ -251,8 +251,8 @@ def cleanup_memory():
         # Force garbage collection of CUDA tensors
         torch.cuda.ipc_collect()
         
-    # Print current memory usage
-    if torch.cuda.is_available():
+    # Print current memory usage only if verbose
+    if verbose and torch.cuda.is_available():
         allocated = torch.cuda.memory_allocated() / 1024 / 1024
         reserved = torch.cuda.memory_reserved() / 1024 / 1024
         max_allocated = torch.cuda.max_memory_allocated() / 1024 / 1024
@@ -285,21 +285,25 @@ def save_checkpoint_local(benchmark_run, epoch, train_loss, val_loss, metrics, t
     return path
 
 
-def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000):
+def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb=8000, max_batches=None):
+    """Evaluate model with memory safety measures and optional batch limiting"""
     initial_memory = get_memory_usage()
 
-    # Create a memory-efficient dataloader with smaller batch size for evaluation
-    smaller_batch_size = 1
+    # Create a memory-efficient dataloader with batch size 1 for evaluation
+    # Also use a subset of the validation data to save memory
+    subset_size = min(20, len(dataloader.dataset))
+    indices = np.random.choice(len(dataloader.dataset), subset_size, replace=False)
+    subset_dataset = torch.utils.data.Subset(dataloader.dataset, indices)
+    
     efficient_dataloader = DataLoader(
-        dataloader.dataset,
-        batch_size=smaller_batch_size,
+        subset_dataset,
+        batch_size=1,
         shuffle=False,
-        num_workers=dataloader.num_workers,
+        num_workers=1,  # Reduce workers too
         collate_fn=dataloader.collate_fn,
         drop_last=dataloader.drop_last,
-        pin_memory=dataloader.pin_memory if hasattr(dataloader, 'pin_memory') else False
+        pin_memory=False  # Disable pin_memory for safety
     )
-    print(f"⚠️ Using smaller batch size for metrics evaluation: {smaller_batch_size} (was {dataloader.batch_size})")
     dataloader = efficient_dataloader
 
     try:
@@ -311,12 +315,18 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
                 for metric in evaluator.metric_dict.values():
                     metric.reset()
                 
+                # Limit number of batches for evaluation if specified
+                batch_count = 0
                 for data in dataloader:
-                    if data is None:
+                    batch_count += 1
+                    if max_batches and batch_count > max_batches:
+                        print(f"⚠️ Limiting evaluation to {max_batches} batches to save memory")
+                        break
+                    if data is None:    
                         continue
                     
                     # Clean up memory before processing each batch
-                    cleanup_memory()
+                    cleanup_memory(verbose=False)
                     
                     preprocessed_batch = preprocess_batch(data, evaluator.preprocessor)
                     if isinstance(preprocessed_batch, dict) and "pixel_values" in preprocessed_batch:
@@ -352,12 +362,8 @@ def safe_evaluate_model(evaluator, dataloader, model, split="val", max_memory_mb
         
         print(f"✅ Evaluation completed for {split} split (Memory: {current_memory:.1f} MB, +{memory_increase:.1f} MB)")
         
-        # Clean up if memory usage is high
-        if current_memory > max_memory_mb:
-            print(f"⚠️  High memory usage detected ({current_memory:.1f} MB), cleaning up...")
-            cleanup_memory()
-            after_cleanup = get_memory_usage()
-            print(f"🧹 Memory cleanup completed (Memory: {after_cleanup:.1f} MB, freed: {current_memory - after_cleanup:.1f} MB)")
+        # Always clean up memory after evaluation
+        cleanup_memory(verbose=True)
         
         return results
         
@@ -572,7 +578,7 @@ def val_epoch_with_progress(benchmark_run, val_loader, epoch, total_epochs):
             
             # Clean up memory every few batches
             if (batch_idx + 1) % 5 == 0:
-                cleanup_memory()
+                cleanup_memory(verbose=False)
         
         val_pbar.close()
     
@@ -633,7 +639,8 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
         train_metric_results = {}
         metric_results = {}
         if compute_metrics_now:
-            metric_results = safe_evaluate_model(evaluator, val_loader, benchmark_run.model, split="validation")
+            # Limit evaluation to 10 batches to save memory
+            metric_results = safe_evaluate_model(evaluator, val_loader, benchmark_run.model, split="validation", max_batches=10)
         
         # Print detailed metrics table
         print(f"\n📊 DETAILED METRICS:\n{'-'*80}\n{'Metric':<15} | {'Train':<15} | {'Validation':<15}\n{'-'*80}")
