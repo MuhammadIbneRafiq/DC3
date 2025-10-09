@@ -2,14 +2,22 @@
 """
 Run script for coral bleaching fine-tuning
 """
+# TODO:
+# First make sure your data is stored in DC3/coralscapesScripts/data
+# Then run DC3/color_normalization/color_normalization/clustering_for_normalization.py
+# You might have to install `kneed`, but it sill show up
+# the clusters will be saved in data folder
+# in fine_tune_pipeline.py lines 884, 796 and 258, change the folder name to the cluster nr. you're running
+# Now, in here, specify the cluster to run
+# Happy running!
 import os
 import argparse
 from datetime import datetime
+import torch
 
 # Set CUDA memory allocation configuration before importing torch
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True,max_split_size_mb:128'
 
-import torch
 
 def main():
     parser = argparse.ArgumentParser(description="Run coral bleaching fine-tuning")
@@ -17,13 +25,13 @@ def main():
     #                     help="Path to config file")
     parser.add_argument("--config", type=str, default="configs/segformer-mit-b2_lora_dc3.yaml",
                         help="Path to config file")
-    parser.add_argument("--dataset-dir", type=str, default="data",
+    parser.add_argument("--dataset-dir", type=str, default="data/cluster_2",  #TODO: specify cluster
                         help="Path to dataset directory")
     parser.add_argument("--n-folds", type=int, default=5, 
                         help="Number of cross-validation folds")
     parser.add_argument("--batch-size", type=int, default=2, 
                         help="Training batch size")
-    parser.add_argument("--epochs", type=int, default=1,
+    parser.add_argument("--epochs", type=int, default=1,  #TODO: specify epochs
                         help="Number of epochs")
     parser.add_argument("--device", type=str, default="gpu1", 
                         choices=["cpu", "gpu1"], 

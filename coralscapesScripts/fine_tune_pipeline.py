@@ -2,16 +2,11 @@
 """
 Coral Bleaching Detection Fine-Tuning Pipeline
 
-This script creates a complete pipeline for fine-tuning the DPT-DINOv2-Giant_LoRA model
+This script creates a complete pipeline for fine-tuning the model
 on the coral reef dataset with cross-validation to detect coral bleaching.
 """
-
 import os
 import sys
-
-# Set CUDA memory allocation configuration before importing torch
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True,max_split_size_mb:128'
-
 import torch
 import numpy as np
 import albumentations as A
@@ -27,10 +22,6 @@ import gc
 import psutil
 from datetime import datetime, timedelta
 from tqdm import tqdm
-
-# Add parent directory to path to import coralscapesScripts modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from coralscapesScripts.datasets.preprocess import get_preprocessor
 from coralscapesScripts.datasets.utils import calculate_weights
 from coralscapesScripts.segmentation.model import Benchmark_Run
@@ -39,6 +30,11 @@ from coralscapesScripts.segmentation.model import preprocess_batch, get_batch_pr
 from coralscapesScripts.segmentation.eval import Evaluator
 from coralscapesScripts.logger import save_benchmark_run
 from coralscapesScripts.io import setup_config, get_parser, update_config_with_args
+
+# Set CUDA memory allocation configuration before importing torch
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True,max_split_size_mb:128'
+# Add parent directory to path to import coralscapesScripts modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class CoralReefDataset(Dataset):
@@ -259,7 +255,7 @@ def cleanup_memory():
 def save_checkpoint_local(benchmark_run, epoch, train_loss, val_loss, metrics, tag=None, directory=None):
     """Save a checkpoint locally without any external logger dependency."""
     if directory is None:
-        directory = os.path.join("./checkpoints", benchmark_run.run_name)
+        directory = os.path.join("./checkpoints/cluster_2", benchmark_run.run_name)  #TODO: specify cluster
     os.makedirs(directory, exist_ok=True)
 
     filename = f"model_epoch{epoch}.pth" if tag is None else f"model_{tag}.pth"
@@ -278,7 +274,7 @@ def save_checkpoint_local(benchmark_run, epoch, train_loss, val_loss, metrics, t
     }
 
     torch.save(checkpoint, path)
-    print(f"\ud83d\udcbe Saved checkpoint: {path}")
+    print(f"Saved checkpoint: {path}")
     return path
 
 
@@ -608,7 +604,7 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
             best_val_mean_iou = current_iou
             best_val_mean_accuracy = current_acc
             best_epoch = epoch
-            print(f"\ud83c\udfc6 New best model! IoU: {best_val_mean_iou:.4f} (Epoch {epoch+1})")
+            print(f"New best model! IoU: {best_val_mean_iou:.4f} (Epoch {epoch+1})")
             save_checkpoint_local(
                 benchmark_run,
                 epoch=epoch,
@@ -690,7 +686,7 @@ def train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg):
             tag="final",
         )
     except Exception as e:
-        print(f"\u26a0\ufe0f Failed to save final checkpoint: {e}")
+        print(f"Failed to save final checkpoint: {e}")
 
     return results_dict
 
@@ -796,13 +792,14 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
     benchmark_metrics = train_with_progress_tracking(train_loader, val_loader, benchmark_run, cfg)
     
     # Save the model (weights-only) and benchmark metadata
-    save_path = f"./checkpoints/fold{fold+1}/{run_name}_final.pth"
+    # TODO: specify cluster
+    save_path = f"./checkpoints/cluster_2/fold{fold+1}/{run_name}_final.pth"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     try:
         torch.save(benchmark_run.model.state_dict(), save_path)
-        print(f"\ud83d\udcbe Saved final model weights to {save_path}")
+        print(f"Saved final model weights to {save_path}")
     except Exception as e:
-        print(f"\u26a0\ufe0f Failed to save final weights to {save_path}: {e}")
+        print(f"Failed to save final weights to {save_path}: {e}")
     save_benchmark_run(benchmark_run, benchmark_metrics)
     
     # Final memory cleanup for this fold
@@ -883,7 +880,8 @@ def main():
     torch.backends.cudnn.benchmark = True
     
     # Create output directories
-    os.makedirs("./checkpoints", exist_ok=True)
+    # TODO: specify which cluster the checkpoints are for
+    os.makedirs("./checkpoints/cluster_2", exist_ok=True)
     
     # Setup cross-validation
     all_images, kfold = setup_cross_validation(args.dataset_dir, cfg, args.n_folds)
