@@ -774,22 +774,22 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
         split='val'
     )
     
-    # Create data loaders
-    pin_mem = device.type == "cuda"
+    # Create data loaders with memory optimizations
+    pin_mem = False  # Disable pin_memory to save memory
     train_loader = DataLoader(
         train_dataset, 
-        batch_size=cfg.data.batch_size, 
+        batch_size=1,  # Force batch size 1
         shuffle=True, 
-        num_workers=2, 
+        num_workers=1,  # Reduce workers
         drop_last=True,
         pin_memory=pin_mem
     )
     
     val_loader = DataLoader(
         val_dataset, 
-        batch_size=cfg.data.batch_size_eval, 
+        batch_size=1,  # Force batch size 1
         shuffle=False, 
-        num_workers=2,
+        num_workers=1,  # Reduce workers
         collate_fn=custom_collate,  # Use custom collate function
         drop_last=True,
         pin_memory=pin_mem

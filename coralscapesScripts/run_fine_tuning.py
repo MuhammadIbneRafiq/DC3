@@ -11,6 +11,7 @@ Run script for coral bleaching fine-tuning
 # Now, in here, specify the cluster to run
 # Happy running!
 import os
+import sys
 import argparse
 from datetime import datetime
 import torch
@@ -43,7 +44,7 @@ def main():
                         help="Path to dataset directory")
     parser.add_argument("--n-folds", type=int, default=5, 
                         help="Number of cross-validation folds")
-    parser.add_argument("--batch-size", type=int, default=2, 
+    parser.add_argument("--batch-size", type=int, default=1,  # Reduced from 2 to 1
                         help="Training batch size")
     parser.add_argument("--epochs", type=int, default=1,  #TODO: specify epochs
                         help="Number of epochs")
@@ -79,17 +80,37 @@ def main():
     # Setup memory optimizations
     patch_file = setup_memory_optimizations()
     
+    # Create a wrapper script that loads all memory optimizations
+    wrapper_script = "run_with_memory_optimizations.py"
+    with open(wrapper_script, "w") as f:
+        f.write(f"""
+# Wrapper script with memory optimizations
+import sys
+
+# Load memory patches
+with open('{patch_file}', 'r') as patch_file:
+    exec(patch_file.read())
+
+# Load additional memory fixes
+with open('extra_memory_fixes.py', 'r') as fixes_file:
+    exec(fixes_file.read())
+
+# Set up arguments
+sys.argv = ['fine_tune_pipeline.py'] + {sys.argv[1:]}
+
+# Load and run the main pipeline
+with open('fine_tune_pipeline.py', 'r') as main_file:
+    exec(main_file.read())
+        """)
+    
     # Build the command with memory optimizations
     cmd = [
-        "python", "-c",
-        f"import sys; exec(open('{patch_file}').read()); " +
-        f"sys.argv = ['fine_tune_pipeline.py'] + sys.argv[1:]; " +
-        f"exec(open('fine_tune_pipeline.py').read())",
+        "python", wrapper_script,
         f"--config={args.config}",
         f"--dataset-dir={args.dataset_dir}",
         f"--n-folds={args.n_folds}",
         f"--run-name={run_name}",
-        f"--batch-size={args.batch_size}",
+        f"--batch-size=1",  # Force batch size 1 for training
         f"--batch-size-eval=1",  # Force batch size 1 for evaluation
         f"--epochs={args.epochs}",
         f"--device={device}"
