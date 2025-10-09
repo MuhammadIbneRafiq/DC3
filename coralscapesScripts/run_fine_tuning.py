@@ -31,7 +31,7 @@ def main():
                         help="Number of cross-validation folds")
     parser.add_argument("--batch-size", type=int, default=2, 
                         help="Training batch size")
-    parser.add_argument("--epochs", type=int, default=1,
+    parser.add_argument("--epochs", type=int, default=1,  #TODO: specify epochs
                         help="Number of epochs")
     parser.add_argument("--device", type=str, default="gpu1", 
                         choices=["cpu", "gpu1"], 
