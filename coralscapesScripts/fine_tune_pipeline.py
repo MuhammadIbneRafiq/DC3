@@ -879,13 +879,13 @@ def train_fold(fold, train_images, val_images, dataset_dir, cfg, device):
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Fine-tune DPT-DINOv2-Giant LoRA for coral bleaching detection")
-    parser.add_argument("--config", type=str, default="configs/dpt-dinov2-giant_lora.yaml", help="Path to config file")
-    parser.add_argument("--dataset-dir", type=str, default="data", help="Path to dataset directory")
+    parser.add_argument("--config", type=str, default="configs/segformer-mit-b2_lora_dc3.yaml", help="Path to config file")
+    parser.add_argument("--dataset-dir", type=str, default="data/cluster_2", help="Path to dataset directory")
     parser.add_argument("--n-folds", type=int, default=5, help="Number of cross-validation folds")
     parser.add_argument("--run-name", type=str, default=f"coral_bleaching_{datetime.now().strftime('%Y%m%d_%H%M%S')}", help="Run name")
     parser.add_argument("--batch-size", type=int, default=2, help="Training batch size")
     parser.add_argument("--batch-size-eval", type=int, default=1, help="Evaluation batch size")
-    parser.add_argument("--epochs", type=int, default=50, help="Number of epochs")
+    parser.add_argument("--epochs", type=int, default=5, help="Number of epochs")
     parser.add_argument("--lr", type=float, default=0.00005, help="Learning rate")
     parser.add_argument("--device", type=str, default="cuda", help="Device to use (cuda, cuda:0, cuda:1, cpu)")
     
