@@ -2,7 +2,7 @@ import numpy as np
 
 import torch 
 
-# import wandb
+import wandb
 import os 
 import json 
 import time
