@@ -7,20 +7,20 @@ from kneed import KneeLocator
 import shutil
 
 
-def cluster_images(data_root: str, output_dir: str):
+def cluster_images(input_path: str, output_path: str):
     """
-    Cluster images based on their dominant color using KMeans.
-    :param data_root: directory containing image and mask folders
-    :param output_dir: directory to save clustered folders
+    Cluster images based on their dominant color using KMeans clustering.
+    :param input_path: directory containing image and mask folders
+    :param output_path: directory to save clustered folders
     """
-    images_dir = os.path.join(data_root, "images")
-    masks_bleached_dir = os.path.join(data_root, "masks_bleached")
-    masks_non_bleached_dir = os.path.join(data_root, "masks_non_bleached")
-    features, image_paths = [], []
+    images_dir = os.path.join(input_path, "images")
+    masks_bleached_dir = os.path.join(input_path, "masks_bleached")
+    masks_non_bleached_dir = os.path.join(input_path, "masks_non_bleached")
+    features, image_paths, sse, medoid_images = [], [], [], []
     print(f"\nLooking for images in: {os.path.abspath(images_dir)}\nExtracting features from images...")
 
     for idx, file in enumerate(os.listdir(images_dir)):
-        if file.lower().endswith(('.jpg', '.jpeg', '.png')):
+        if file.lower().endswith('.jpg'):
             path = os.path.join(images_dir, file)
             image = cv2.imread(path)
             if image is None:
@@ -35,7 +35,6 @@ def cluster_images(data_root: str, output_dir: str):
                 print(f"  Processed {idx + 1} images...")
 
     features = np.array(features)
-    sse = []
     K_range = range(1, 16)
 
     for k in K_range:
@@ -54,9 +53,6 @@ def cluster_images(data_root: str, output_dir: str):
     print("\nCluster distribution:")
     for i in range(optimal_k):
         print(f"  Cluster {i}: {np.sum(labels == i)} images")
-
-    medoid_images = []
-    for i in range(optimal_k):
         cluster_indices = np.where(labels == i)[0]
         cluster_features = features[cluster_indices]
         centroid = kmeans.cluster_centers_[i]
@@ -69,12 +65,12 @@ def cluster_images(data_root: str, output_dir: str):
     for idx, path in enumerate(medoid_images):
         print(f"  Cluster {idx}: {os.path.basename(path)}")
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
 
-    print(f"\nCreating cluster folder structure in: {os.path.abspath(output_dir)}")
+    print(f"\nCreating cluster folder structure in: {os.path.abspath(output_path)}")
     for i in range(optimal_k):
-        cluster_folder = os.path.join(output_dir, f"cluster_{i}")
+        cluster_folder = os.path.join(output_path, f"cluster_{i}")
         os.makedirs(os.path.join(cluster_folder, "images"), exist_ok=True)
         os.makedirs(os.path.join(cluster_folder, "masks_bleached"), exist_ok=True)
         os.makedirs(os.path.join(cluster_folder, "masks_non_bleached"), exist_ok=True)
@@ -86,9 +82,8 @@ def cluster_images(data_root: str, output_dir: str):
     for img_path, label in zip(image_paths, labels):
         filename = os.path.basename(img_path)
         base_name = os.path.splitext(filename)[0]  # get base name without extension to find corresponding masks
-        cluster_folder = os.path.join(output_dir, f"cluster_{label}")
+        cluster_folder = os.path.join(output_path, f"cluster_{label}")
 
-        # copy images and masks
         img_dest = os.path.join(cluster_folder, "images", filename)
         if not os.path.exists(img_dest):
             shutil.copy(img_path, img_dest)
@@ -116,9 +111,8 @@ def cluster_images(data_root: str, output_dir: str):
             print(f"  Copied {copied_count}/{len(image_paths)} images...")
             sys.stdout.flush()
 
-    print(f"Copied all {copied_count} images")
-    print(f"Copied {masks_copied} mask files")
-    print("CLUSTERING COMPLETE!")
-    print(f"Output location: {os.path.abspath(output_dir)}")
-    print(f"Created {optimal_k} cluster folders with images and masks")
+
+    print(f"Clustering complete!\nOutput location: {os.path.abspath(output_path)}")
     sys.stdout.flush()
+
+cluster_images('../data', '../data')
