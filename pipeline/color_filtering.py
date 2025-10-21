@@ -24,7 +24,7 @@ def apply_filters(input_path: str, output_path: str):
         overlay = Image.new("RGBA", image.size, color + (int(255 * intensity),))
         return Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
 
-    for cluster in range(0, 1):
+    for cluster in range(0, 3):
         for color_name, rgb in color_filters.items():
             output_folder = f"{output_path}_{color_name}_{cluster}"
             os.makedirs(f"{output_folder}/images", exist_ok=True)
