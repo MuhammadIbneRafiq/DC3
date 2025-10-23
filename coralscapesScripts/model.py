@@ -9,8 +9,8 @@ import segmentation_models_pytorch as smp
 from transformers import ConvNextV2Config, ConvNextV2Model, UperNetConfig, UperNetForSemanticSegmentation, SegformerForSemanticSegmentation, Mask2FormerForUniversalSegmentation, AutoModel, Mask2FormerConfig
 from peft import LoraConfig, get_peft_model
 # it shows an error, but it runs in the main file!
-from coralscapesScripts_old.preprocess import get_preprocessor, preprocess_batch, get_windows
-from coralscapesScripts_old.loss import get_loss_fn
+from coralscapesScripts.preprocess import get_preprocessor, preprocess_batch, get_windows
+from coralscapesScripts.loss import get_loss_fn
 
 
 def get_batch_predictions(data, model, device, loss_fn = None):
