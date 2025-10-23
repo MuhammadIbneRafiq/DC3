@@ -16,9 +16,9 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 
 processed_images = ImagePreprocessing(input_path, output_path)
-processed_images.cluster_images()
-processed_images.apply_filters()
-color, cluster = color_cluster(root)
+processed_images.cluster_images()  # cluster images
+processed_images.apply_filters()  # apply CMY filters to each cluster
+color, cluster = color_cluster(root)  # to name the checkpoints folder
 
 device_count = torch.cuda.device_count()  # connect to GPU
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
