@@ -190,6 +190,56 @@ The pipeline maps 40 original coral classes to 3 main categories:
 - **Class 0**: Background, sand, rubble, non-bleached coral
 - **Class 1**: Bleached coral regions
 - **Class 2**: Additional background classes
+  The following classes are found from the Coralscapes dataset from coralscapes' dataset from huggingface
+
+```python
+# Background classes -> 0 (background)
+0: 0,   # Undetected background
+1: 0,   # seagrass
+2: 0,   # trash
+5: 0,   # sand
+7: 0,   # human
+8: 0,   # transect tools
+9: 0,   # fish
+10: 0,  # algae_covered_substrate
+11: 0,  # other animal
+12: 0,  # unknown hard subtrate
+13: 0,  # black background
+14: 0,  # dark
+15: 0,  # transect line
+
+# Bleached coral classes -> 1 (bleached)
+4: 1,   # other coral bleached
+16: 1,  # massive_meandering_bleached -> bleached
+19: 1,  # branching_bleached -> bleached
+33: 1,  # meandering_bleached -> bleached
+
+# Non-bleached coral classes -> 2 (non-bleached)
+3: 2,   # other coral dead
+6: 2,   # other coral alive
+17: 2,  # massive_meandering_alive -> non-bleached
+18: 2,  # rubble (coral rubble) -> non-bleached
+20: 2,  # branching_dead -> non-bleached (dead but not bleached)
+21: 2,  # millepora -> non-bleached
+22: 2,  # branching_alive -> non-bleached
+23: 2,  # massive_meandering_dead -> non-bleached (dead but not bleached)
+24: 2,  # clam -> non-bleached
+25: 2,  # acropora_alive -> non-bleached
+26: 2,  # sea_cucumber -> non-bleached
+27: 2,  # turbinaria -> non-bleached
+28: 2,  # table_acropora_alive -> non-bleached
+29: 2,  # sponge -> non-bleached
+30: 2,  # anemone -> non-bleached
+31: 2,  # pocillopora_alive -> non-bleached
+32: 2,  # table_acropora_dead -> non-bleached (dead but not bleached)
+34: 2,  # stylophora_alive -> non-bleached
+35: 2,  # sea_urchin -> non-bleached
+36: 2,  # meandering_alive -> non-bleached
+37: 2,  # meandering_dead -> non-bleached (dead but not bleached)
+38: 2,  # crown_of_thorn -> non-bleached
+39: 2,  # dead_clam -> non-bleached
+```
+
 
 ### Memory Optimization
 - Automatic memory cleanup between epochs
@@ -224,10 +274,10 @@ The fine-tuning pipeline achieves competitive results on coral bleaching detecti
    - Use CPU fallback: `--device cpu`
 
 ## 📚 Additional Resources
-
+- **Group 03 dc3 original drive**: [Google drive link](https://drive.google.com/drive/folders/15pPCEVRFyHb3JQkFSnP8L6a0_nfm8ijp?usp=sharing)
+- **Our experiment result checkpoints**: [Model weights Experiments](https://drive.google.com/drive/folders/1vh7podhA54w_I_SvLaeoT15at0R-qawB?usp=sharing)
 - **Coralscapes Dataset**: [Hugging Face](https://huggingface.co/datasets/EPFL-ECEO/coralscapes)
 - **Model Checkpoints**: [Hugging Face Models](https://huggingface.co/EPFL-ECEO)
-- **Online Demo**: [Gradio Demo](https://huggingface.co/spaces/EPFL-ECEO/coralscapes_demo)
 
 ## Authors
 * Juliette Hattingh-Haasbroek (1779192)
