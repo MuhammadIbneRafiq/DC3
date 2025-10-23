@@ -8,9 +8,9 @@ from tqdm import tqdm
 import segmentation_models_pytorch as smp
 from transformers import ConvNextV2Config, ConvNextV2Model, UperNetConfig, UperNetForSemanticSegmentation, SegformerForSemanticSegmentation, Mask2FormerForUniversalSegmentation, AutoModel, Mask2FormerConfig
 from peft import LoraConfig, get_peft_model
-
-from preprocess import get_preprocessor, preprocess_batch, get_windows
-from loss import get_loss_fn
+# it shows an error, but it runs in the main file!
+from coralscapesScripts.preprocess import get_preprocessor, preprocess_batch, get_windows
+from coralscapesScripts.loss import get_loss_fn
 
 
 def get_batch_predictions(data, model, device, loss_fn = None):
@@ -128,18 +128,18 @@ class Benchmark_Run:
                 semantic_loss_ignore_index = 0, ignore_mismatched_sizes=True
             )
 
-        elif(model_name == "dpt-dinov2-base"):
-            self.model = DPTDinov2ForSemanticSegmentation(num_labels=N_classes, 
-                                                    backbone = "facebook/dinov2-base")
-            
-        elif(model_name == "dpt-dinov2-giant"):
-            self.model = DPTDinov2ForSemanticSegmentation(num_labels=N_classes, 
-                                                    backbone = "facebook/dinov2-giant")
-
-        elif(model_name == "linear-dinov2-base"):
-            self.model = Dinov2ForSemanticSegmentation.from_pretrained("facebook/dinov2-base", 
-                                                                       id2label={i:i for i in range(0, N_classes)}, 
-                                                                       num_labels=N_classes)
+        # elif(model_name == "dpt-dinov2-base"):
+        #     self.model = DPTDinov2ForSemanticSegmentation(num_labels=N_classes,
+        #                                             backbone = "facebook/dinov2-base")
+        #
+        # elif(model_name == "dpt-dinov2-giant"):
+        #     self.model = DPTDinov2ForSemanticSegmentation(num_labels=N_classes,
+        #                                             backbone = "facebook/dinov2-giant")
+        #
+        # elif(model_name == "linear-dinov2-base"):
+        #     self.model = Dinov2ForSemanticSegmentation.from_pretrained("facebook/dinov2-base",
+        #                                                                id2label={i:i for i in range(0, N_classes)},
+        #                                                                num_labels=N_classes)
         else:
             raise ValueError("Model not found")
 
