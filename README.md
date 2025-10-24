@@ -54,7 +54,7 @@ be applied to each cluster. Afterward, the model runs on the specified dataset `
 - `--lr`: Learning rate (default: 0.00005)
 - `--device`: Device to use (cuda, cuda:0, cuda:1, cpu)
 
-### Model Configurations
+[//]: # (### Model Configurations)
 
 [//]: # (#### DPT-DINOv2-Giant with LoRA)
 
@@ -121,16 +121,6 @@ The fine-tuning pipeline includes:
 4. **Progress Tracking**: Detailed progress bars and timing estimates
 5. **Model Checkpointing**: Automatic saving of best models based on the Coral Rank score
 
-### Evaluation Metrics
-The Coral Rank (CR) score is calculated as a weighted combination of accuracy and mean Intersection over Union (mIoU):
-
-$`\text{CR} = 0.2 \cdot \mathcal{A} + 0.8 \cdot \text{mIoU}`$,
-
-where $\mathcal{A}$ represents the classification accuracy, and the mIoU is computed as:
-
-$`\text{mIoU} = \sum_{c \in \mathcal{C}} w_c \cdot \text{IoU}_c = 0.1 \cdot \text{IoU}_{\text{background}} + 0.45 \cdot \text{IoU}_{\text{bleached}} + 0.45 \cdot \text{IoU}_{\text{non-bleached}}`$.
-
-
 [//]: # (The pipeline evaluates models using:)
 
 [//]: # (- **Mean Intersection over Union &#40;IoU&#41;**)
@@ -147,7 +137,7 @@ $`\text{mIoU} = \sum_{c \in \mathcal{C}} w_c \cdot \text{IoU}_c = 0.1 \cdot \tex
 
 After training, the pipeline creates:
 ```
-checkpoints_{cluster_name or baseline}_{color or none}/
+checkpoints_{color_name or baseline}_{cluster_number or none}/
 ├── best_overall_model.pth
 ├── kfold_metrics.json
 ├── metrics_fold_1.json
@@ -161,6 +151,17 @@ checkpoints_{cluster_name or baseline}_{color or none}/
 ├── model_fold_4_best_score.pth
 └── model_fold_5_best_score.pth
 ```
+### Evaluation Metrics
+The Coral Rank (CR) score is calculated as a weighted combination of accuracy and mean Intersection over Union (mIoU):
+
+$`\text{CR} = 0.2 \cdot \mathcal{A} + 0.8 \cdot \text{mIoU}`$,
+
+where $\mathcal{A}$ represents the classification accuracy, and the mIoU is computed as:
+
+$`\text{mIoU} = \sum_{c \in \mathcal{C}} w_c \cdot \text{IoU}_c = 0.1 \cdot \text{IoU}_{\text{background}} + 0.45 \cdot \text{IoU}_{\text{bleached}} + 0.45 \cdot \text{IoU}_{\text{non-bleached}}`$.
+
+### Inference
+After running the model, evaluation metrics can be run by running `inderence.py`.
 
 [//]: # (After training, the pipeline creates:)
 
