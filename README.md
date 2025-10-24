@@ -161,7 +161,7 @@ where $\mathcal{A}$ represents the classification accuracy, and the mIoU is comp
 $`\text{mIoU} = \sum_{c \in \mathcal{C}} w_c \cdot \text{IoU}_c = 0.1 \cdot \text{IoU}_{\text{background}} + 0.45 \cdot \text{IoU}_{\text{bleached}} + 0.45 \cdot \text{IoU}_{\text{non-bleached}}`$.
 
 ### Inference
-After running the model, evaluation metrics can be run by running `inderence.py`.
+After running the model, evaluation metrics can be run by running `inference.py`.
 
 [//]: # (After training, the pipeline creates:)
 
