@@ -31,8 +31,8 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 def inference():
     print(f"Final canvas visualizations will be saved to: {VIS_DIR}")
     inference_runs = [('Cyan 0', 'data_cyan_0', 'checkpoints_cyan_0'),
-                      ('Cyan 1', 'data_cyan_1', 'checkpoints_cyan_0'),
-                      ('Cyan 2', 'data_cyan_2', 'checkpoints_cyan_0'),
+                      ('Cyan 1', 'data_cyan_1', 'checkpoints_cyan_1'),
+                      ('Cyan 2', 'data_cyan_2', 'checkpoints_cyan_2'),
                       ('Magenta 0', 'data_magenta_0', 'checkpoints_magenta_0'),
                       ('Magenta 1', 'data_magenta_1', 'checkpoints_magenta_1'),
                       ('Magenta 2', 'data_magenta_2', 'checkpoints_magenta_2'),
