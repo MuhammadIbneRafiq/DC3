@@ -7,8 +7,7 @@ import cv2
 import pandas as pd
 import math
 import random
-from config import __RANDOM_STATE__, input_path, output_path, root, MODEL_NAME, VIS_DIR
-from image_preprocessing import ImagePreprocessing
+from config import __RANDOM_STATE__, root, MODEL_NAME, VIS_DIR
 from inference_functions import (CoralBleachingDataset, load_lora_segformer_model, run_inference_and_metrics,
                                  calculate_custom_metrics, visualize_single_sample_canvas)
 
@@ -18,11 +17,8 @@ torch.cuda.manual_seed(__RANDOM_STATE__)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 
-N_CLASSES = ImagePreprocessing(input_path, output_path).optimal_k
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-
-def inference():
+def inference(N_CLASSES, device):
     print(f"Final canvas visualizations will be saved to: {VIS_DIR}")
     inference_runs = [('Cyan 0', 'data_cyan_0', 'checkpoints_cyan_0'),
                       ('Cyan 1', 'data_cyan_1', 'checkpoints_cyan_1'),
@@ -93,7 +89,3 @@ def inference():
         print(final_table.to_markdown(index=False))
     else:
         print("No results were generated. Please check all paths and data contents.")
-
-
-if __name__ == "__main__":
-    inference()
