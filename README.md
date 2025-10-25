@@ -36,25 +36,18 @@ The fine-tuning pipeline is designed to train deep learning models for coral ble
 We are using the **SegFormer-MiT-B2 (LoRA)** model. Its configurations can be
 found in `configs/segformer-mit-b2_lora.yaml`
 
-### Running Fine-tuning
+### Running Preprocessing, Fine-tuning, Inference, and Grad-CAM
 In the file `config.py`, specify the dataset you want to run the model on.
-In the `main.py` file, the images will be clustered based on their mean color and color filters will 
-be applied to each cluster. Afterward, the model runs on the specified dataset `root` in `config.py`.
+Ensure that the file paths are valid and lead to the needed file/folder.
 
-#### Command Line Arguments
-- `--config`: Path to model configuration file
-- `--dataset-dir`: Path to dataset directory
-- `--n-folds`: Number of cross-validation folds (default: 5)
-- `--run-name`: Unique name for the experiment
-- `--batch-size`: Training batch size (default: 1)
-- `--batch-size-eval`: Evaluation batch size (default: 1)
-- `--epochs`: Number of training epochs (default: 50)
-- `--lr`: Learning rate (default: 0.00005)
-- `--device`: Device to use (cuda, cuda:0, cuda:1, cpu)
+In the `main.ipynb` file, the images will be clustered based on their mean color and color filters will 
+be applied to each cluster. The model runs on the specified dataset `root` in `config.py`. 
+Afterward, inference will be run where evaluation metrics will be computed on the
+test set. Lastly, a sample image from each cluster will be taken and a Grad-CAM
+heatmap will be applied to explain the model's output.
 
 ### Training Process
 The fine-tuning pipeline includes:
-
 1. **Cross-Validation**: 5-fold cross-validation by default
 2. **Data Augmentation**: Random crops, horizontal flips, normalization
 3. **Memory Management**: Automatic memory cleanup and efficient batch processing
@@ -62,7 +55,7 @@ The fine-tuning pipeline includes:
 5. **Model Checkpointing**: Automatic saving of best models based on the Coral Rank score
 
 ### Output Structure
-After training, the pipeline creates:
+After training, the pipeline creates a checkpoints folder for the specified cluster and color:
 ```
 checkpoints_{color_name or baseline}_{cluster_number or none}/
 ├── best_overall_model.pth
@@ -86,18 +79,6 @@ $`\text{CR} = 0.2 \cdot \mathcal{A} + 0.8 \cdot \text{mIoU}`$,
 where $\mathcal{A}$ represents the classification accuracy, and the mIoU is computed as:
 
 $`\text{mIoU} = \sum_{c \in \mathcal{C}} w_c \cdot \text{IoU}_c = 0.1 \cdot \text{IoU}_{\text{background}} + 0.45 \cdot \text{IoU}_{\text{bleached}} + 0.45 \cdot \text{IoU}_{\text{non-bleached}}`$.
-
-### Inference
-After running the model, evaluation metrics on the test set can be shown by running `inference.py`.
-
-Alternatively, data from a specific cluster and its model checkpoints and weights
-can be found at the end of this page to run inference faster. The folder contains
-the data we used to fine-tune our model, and the saved checkpoints and weights from
-our fine-tuning.
-
-### Explainability
-For our SLE essay, our main focus is on explainability. To see which parts
-of images the model used for its outputs, run `gradcam.py`.
 
 ## Technical Details
 ### Class Mapping
@@ -124,23 +105,6 @@ class_mapping = {
 - Efficient batch processing with custom collate functions
 - GPU memory monitoring and optimization
 - Fallback to CPU processing when GPU memory is insufficient
-
-## Troubleshooting
-### Common Issues
-1. **Out of Memory Error**
-   - Reduce batch size: `--batch-size 1` or `--batch-size-eval 1`
-   - Use CPU: `--device cpu`
-   - Enable memory cleanup in configuration
-
-2. **Dataset Not Found**
-   - Ensure correct dataset structure
-   - Check file paths in configuration
-   - Verify image and mask file naming conventions
-
-3. **CUDA Issues**
-   - Check GPU availability: `torch.cuda.is_available()`
-   - Verify CUDA version compatibility
-   - Use CPU fallback: `--device cpu`
 
 ## Additional Resources
 - **Our color filtered cluster data and models' checkpoints and best weights**: [DC3 color filter data](https://drive.google.com/drive/folders/1yafN3OAzJ5BbFOOeogXgWdIEAqdzqh-T?usp=sharing)
