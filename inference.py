@@ -7,24 +7,18 @@ import cv2
 import pandas as pd
 import math
 import random
-from config import __RANDOM_STATE__, input_path, output_path, root
+from config import __RANDOM_STATE__, input_path, output_path, root, MODEL_NAME, VIS_DIR
 from image_preprocessing import ImagePreprocessing
 from inference_functions import (CoralBleachingDataset, load_lora_segformer_model, run_inference_and_metrics,
                                  calculate_custom_metrics, visualize_single_sample_canvas)
 
-
-N_CLASSES = ImagePreprocessing(input_path, output_path).optimal_k
-MODEL_NAME = "nvidia/mit-b2"
-VIS_DIR = "assets"
 
 torch.manual_seed(__RANDOM_STATE__)
 torch.cuda.manual_seed(__RANDOM_STATE__)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
 
-device_count = torch.cuda.device_count()
-for i in range(device_count):
-    print(f"\nCUDA Device {i}: {torch.cuda.get_device_name(i)}")
+N_CLASSES = ImagePreprocessing(input_path, output_path).optimal_k
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
