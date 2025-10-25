@@ -29,7 +29,6 @@ unclustered_none/
 ```
 
 ## Fine-tuning Pipeline
-
 ### Overview
 The fine-tuning pipeline is designed to train deep learning models for coral bleaching detection using semantic segmentation. It supports multiple model architectures and includes cross-validation for robust evaluation.
 
@@ -42,7 +41,6 @@ In the file `config.py`, specify the dataset you want to run the model on.
 In the `main.py` file, the images will be clustered based on their mean color and color filters will 
 be applied to each cluster. Afterward, the model runs on the specified dataset `root` in `config.py`.
 
-
 #### Command Line Arguments
 - `--config`: Path to model configuration file
 - `--dataset-dir`: Path to dataset directory
@@ -54,65 +52,7 @@ be applied to each cluster. Afterward, the model runs on the specified dataset `
 - `--lr`: Learning rate (default: 0.00005)
 - `--device`: Device to use (cuda, cuda:0, cuda:1, cpu)
 
-[//]: # (### Model Configurations)
-
-[//]: # (#### DPT-DINOv2-Giant with LoRA)
-
-[//]: # (```yaml)
-
-[//]: # (# configs/dpt-dinov2-giant_lora.yaml)
-
-[//]: # (model:)
-
-[//]: # (  name: "dpt-dinov2-giant")
-
-[//]: # (  )
-[//]: # (lora:)
-
-[//]: # (  r: 128)
-
-[//]: # (  lora_alpha: 32)
-
-[//]: # (  modules_to_save: ["head"])
-
-[//]: # ()
-[//]: # (training:)
-
-[//]: # (  epochs: 1000)
-
-[//]: # (  optimizer:)
-
-[//]: # (    type: torch.optim.AdamW)
-
-[//]: # (    lr: 0.0005)
-
-[//]: # (    weight_decay: 0.01)
-
-[//]: # (```)
-
-[//]: # (#### SegFormer-MiT-B2 with LoRA)
-
-[//]: # (```yaml)
-
-[//]: # (# configs/segformer-mit-b2_lora.yaml)
-
-[//]: # (model:)
-
-[//]: # (  name: "segformer-mit-b2")
-
-[//]: # (  )
-[//]: # (lora:)
-
-[//]: # (  r: 64)
-
-[//]: # (  lora_alpha: 16)
-
-[//]: # (  modules_to_save: ["decode_head"])
-
-[//]: # (```)
-
 ### Training Process
-
 The fine-tuning pipeline includes:
 
 1. **Cross-Validation**: 5-fold cross-validation by default
@@ -121,20 +61,7 @@ The fine-tuning pipeline includes:
 4. **Progress Tracking**: Detailed progress bars and timing estimates
 5. **Model Checkpointing**: Automatic saving of best models based on the Coral Rank score
 
-[//]: # (The pipeline evaluates models using:)
-
-[//]: # (- **Mean Intersection over Union &#40;IoU&#41;**)
-
-[//]: # (- **Pixel Accuracy**)
-
-[//]: # (- **Per-class IoU**)
-
-[//]: # (- **Coral Rank**)
-
-[//]: # (- $`\text{mIoU} = \sum_{c \in \mathcal{C}} w_c \cdot \text{IoU}_c = 0.1 \cdot \text{IoU}_{\text{background}} + 0.45 \cdot \text{IoU}_{\text{bleached}} + 0.45 \cdot \text{IoU}_{\text{non-bleached}}`$)
-
 ### Output Structure
-
 After training, the pipeline creates:
 ```
 checkpoints_{color_name or baseline}_{cluster_number or none}/
@@ -161,87 +88,18 @@ where $\mathcal{A}$ represents the classification accuracy, and the mIoU is comp
 $`\text{mIoU} = \sum_{c \in \mathcal{C}} w_c \cdot \text{IoU}_c = 0.1 \cdot \text{IoU}_{\text{background}} + 0.45 \cdot \text{IoU}_{\text{bleached}} + 0.45 \cdot \text{IoU}_{\text{non-bleached}}`$.
 
 ### Inference
-After running the model, evaluation metrics can be run by running `inference.py`.
+After running the model, evaluation metrics on the test set can be shown by running `inference.py`.
 
-[//]: # (After training, the pipeline creates:)
+Alternatively, data from a specific cluster and its model checkpoints and weights
+can be found at the end of this page to run inference faster. The folder contains
+the data we used to fine-tune our model, and the saved checkpoints and weights from
+our fine-tuning.
 
-[//]: # (```)
-
-[//]: # (checkpoints_{cluster_name or basline}_{color or none}/)
-
-[//]: # (├── fold1/)
-
-[//]: # (│   ├── coral_bleaching_experiment_fold1_final.pth)
-
-[//]: # (│   └── benchmark_results.json)
-
-[//]: # (├── fold2/)
-
-[//]: # (│   └── ...)
-
-[//]: # (└── ...)
-
-[//]: # (```)
-
-[//]: # (## 📊 Data Visualization)
-
-[//]: # ()
-[//]: # (### Coral Reef Dataset Loader)
-
-[//]: # (The project includes a PyTorch DataLoader for coral reef images with segmentation masks:)
-
-[//]: # ()
-[//]: # (```python)
-
-[//]: # (# Example usage from dataloader_example_masks.ipynb)
-
-[//]: # (from ReefSegDataset import ReefSegDataset)
-
-[//]: # (from torch.utils.data import DataLoader)
-
-[//]: # ()
-[//]: # (# Create dataset)
-
-[//]: # (dataset = ReefSegDataset&#40;)
-
-[//]: # (    images_dir="data/images",)
-
-[//]: # (    masks_stitched_dir="data/masks_stitched",)
-
-[//]: # (    resize=&#40;512, 512&#41;)
-
-[//]: # (&#41;)
-
-[//]: # ()
-[//]: # (# Create data loader)
-
-[//]: # (dataloader = DataLoader&#40;dataset, batch_size=4, shuffle=True&#41;)
-
-[//]: # (```)
-
-[//]: # ()
-[//]: # (### Color Correction)
-
-[//]: # (The project includes color correction utilities for underwater images:)
-
-[//]: # (- **Gray-World Algorithm**: `Color Correction/Gray-World.py`)
-
-[//]: # (- **Histogram Matching**: `Color Correction/Histogram Matching.py`)
+### Explainability
+For our SLE essay, our main focus is on explainability. To see which parts
+of images the model used for its outputs, run `gradcam.py`.
 
 ## Technical Details
-
-[//]: # (### Model Architecture)
-
-[//]: # (The fine-tuning pipeline uses state-of-the-art vision transformers and CNNs:)
-
-[//]: # (- **DPT &#40;Dense Prediction Transformer&#41;**: For dense prediction tasks)
-
-[//]: # (- **DINOv2**: Self-supervised vision transformer backbone)
-
-[//]: # (- **LoRA &#40;Low-Rank Adaptation&#41;**: Efficient fine-tuning technique)
-
-[//]: # (- **SegFormer**: Efficient transformer for semantic segmentation)
-
 ### Class Mapping
 The pipeline maps 40 original coral classes to 3 main categories:
 - **Class 0**: Background (sand, rubble, fish)
@@ -267,21 +125,8 @@ class_mapping = {
 - GPU memory monitoring and optimization
 - Fallback to CPU processing when GPU memory is insufficient
 
-[//]: # (## 📈 Performance)
-
-[//]: # ()
-[//]: # (The fine-tuning pipeline achieves competitive results on coral bleaching detection:)
-
-[//]: # (- **Mean IoU**: ~68% on validation set)
-
-[//]: # (- **Pixel Accuracy**: ~90% on background classes)
-
-[//]: # (- **Bleached Coral Detection**: ~53% IoU for bleached coral regions)
-
 ## Troubleshooting
-
 ### Common Issues
-
 1. **Out of Memory Error**
    - Reduce batch size: `--batch-size 1` or `--batch-size-eval 1`
    - Use CPU: `--device cpu`
@@ -298,10 +143,7 @@ class_mapping = {
    - Use CPU fallback: `--device cpu`
 
 ## Additional Resources
-
-[//]: # (- **Group 03 dc3 original drive**: [Google drive link]&#40;https://drive.google.com/drive/folders/15pPCEVRFyHb3JQkFSnP8L6a0_nfm8ijp?usp=sharing&#41;)
 - **Our color filtered cluster data and models' checkpoints and best weights**: [DC3 color filter data](https://drive.google.com/drive/folders/1yafN3OAzJ5BbFOOeogXgWdIEAqdzqh-T?usp=sharing)
-- **Our experiment result checkpoints**: [Model weights Experiments](https://drive.google.com/drive/folders/1vh7podhA54w_I_SvLaeoT15at0R-qawB?usp=sharing)
 - **Coralscapes Dataset**: [Hugging Face](https://huggingface.co/datasets/EPFL-ECEO/coralscapes)
 - **Model Checkpoints**: [Hugging Face Models](https://huggingface.co/EPFL-ECEO)
 
