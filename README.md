@@ -300,7 +300,7 @@ class_mapping = {
 ## Additional Resources
 
 [//]: # (- **Group 03 dc3 original drive**: [Google drive link]&#40;https://drive.google.com/drive/folders/15pPCEVRFyHb3JQkFSnP8L6a0_nfm8ijp?usp=sharing&#41;)
-- **Our color filtered cluster data**: [DC3 color filter data](https://drive.google.com/drive/folders/1yafN3OAzJ5BbFOOeogXgWdIEAqdzqh-T?usp=sharing)
+- **Our color filtered cluster data and models' checkpoints and best weights**: [DC3 color filter data](https://drive.google.com/drive/folders/1yafN3OAzJ5BbFOOeogXgWdIEAqdzqh-T?usp=sharing)
 - **Our experiment result checkpoints**: [Model weights Experiments](https://drive.google.com/drive/folders/1vh7podhA54w_I_SvLaeoT15at0R-qawB?usp=sharing)
 - **Coralscapes Dataset**: [Hugging Face](https://huggingface.co/datasets/EPFL-ECEO/coralscapes)
 - **Model Checkpoints**: [Hugging Face Models](https://huggingface.co/EPFL-ECEO)
