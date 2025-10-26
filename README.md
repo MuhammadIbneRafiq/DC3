@@ -3,6 +3,8 @@
 
 This repository contains the code for coral bleaching detection using deep learning models. The project implements a comprehensive fine-tuning pipeline for semantic segmentation of coral reef images to identify bleached and non-bleached coral reefs.
 
+Repository: [https://github.com/MuhammadIbneRafiq/DC3](https://github.com/MuhammadIbneRafiq/DC3)
+
 ## Quick Start
 ### Python Version
 ```aiignore
@@ -107,7 +109,7 @@ class_mapping = {
 - Fallback to CPU processing when GPU memory is insufficient
 
 ## Additional Resources
-- **Our color filtered cluster data and models' checkpoints and best weights**: [DC3 color filter data](https://drive.google.com/drive/folders/1yafN3OAzJ5BbFOOeogXgWdIEAqdzqh-T?usp=sharing)
+- **Our color filtered cluster data and models' checkpoints and best weights**: [DC3 data](https://drive.google.com/drive/folders/1yafN3OAzJ5BbFOOeogXgWdIEAqdzqh-T?usp=sharing)
 - **Coralscapes Dataset**: [Hugging Face](https://huggingface.co/datasets/EPFL-ECEO/coralscapes)
 - **Model Checkpoints**: [Hugging Face Models](https://huggingface.co/EPFL-ECEO)
 
